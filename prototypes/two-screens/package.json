@@ -1,0 +1,19 @@
+{
+  "name": "perfect-presentations-two-screens-prototype",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "node build.mjs",
+    "verify": "node verify.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "private": true
+}
