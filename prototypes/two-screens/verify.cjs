@@ -59,7 +59,12 @@ const assert = require('node:assert/strict');
       await presenter.getByText('Publiek openen',{exact:true}).click();
       audience = await reopened;
       await audience.getByRole('heading',{name:'Wat ik wil bespreken'}).waitFor();
-      await audience.getByText('Volledig scherm',{exact:true}).click();
+      assert.equal(await audience.locator('header, nav, footer').count(), 0);
+      assert.deepEqual(await audience.locator('article').evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        return [rect.x, rect.y, rect.width === innerWidth, rect.height >= innerHeight, getComputedStyle(el).borderRadius];
+      }), [0, 0, true, true, '0px']);
+      await audience.keyboard.press('f');
       await audience.waitForFunction(() => !!document.fullscreenElement);
       await presenter.screenshot({path:url.startsWith('file:')?'presenter.png':'presenter-http.png',fullPage:true});
       await audience.screenshot({path:url.startsWith('file:')?'viewer.png':'viewer-http.png',fullPage:true});
