@@ -41,3 +41,11 @@ Beoordeel dit eerst in Chrome op een computer met twee schermen. Test daarna Saf
 Herstel van een sessie gebruikt opslag wanneer die beschikbaar is. Als de browser opslag voor lokale bestanden blokkeert, gaat presentatorstatus bij vernieuwen verloren. De juiste terugval en een eventuele noodzaak om het bestand lokaal te serveren blijven onderdeel van de browserproef.
 
 De React-presentatie op een route in een bestaand full-stack framework moet later met dezelfde interactie- en sessielogica worden getest. Dit voorbeeld is met esbuild gebundeld. De frameworkadapter en vergaderopname worden apart uitgewerkt.
+
+## Grafiekproef voor issue #7
+
+Open slide 4. Gebruik **Basis** of **Alternatief** in een van beide vensters. De keuze volgt mee in het andere venster en blijft staan binnen dezelfde sessie. Tab naar de grafiek en gebruik de pijltjestoetsen voor de exacte waarden. De tooltip blijft in het venster dat je bedient.
+
+`npm run build` genereert naast het losse `prototype.html` ook `route.html` met aparte JavaScript- en CSS-bestanden. Start in deze map bijvoorbeeld `python3 -m http.server 8000` en open `http://localhost:8000/route.html` voor de React-proef. Beide gebruiken dezelfde grafiekcomponent. De route is een lokaal voorbeeld voor deze proef. Integratie in een bestaande full-stack React-repo hoort bij de v1-acceptatie.
+
+`npm run verify` gebruikt de HTTP-route en opent de zelfstandige HTML-export met de browser offline. De grafiekproef controleert scenariowissels, sessieherstel, toetsenbordfocus en een lokale tooltip. Controleer de leesbaarheid van assen, eenheden, legenda en bron ook visueel op het tweede scherm.
