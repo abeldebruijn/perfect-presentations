@@ -10,6 +10,8 @@ De publieksweergave vult het venster met de slide. Navigeer met de pijltjestoets
 
 ## Voorgesteld gedrag
 
+- Begin iedere slide met de kerninhoud en plaats aanvullende informatie eronder. Scroll binnen de slide in een van beide vensters om dezelfde relatieve positie in het andere venster te tonen. Een slidewissel begint bovenaan.
+
 - De presentator beheert de sessiestatus. Het publieksvenster stuurt navigatie- en interactiecommando’s terug. De sessie-ID voorkomt vermenging tussen presentaties.
 - De timer begint na **Timer starten**. Bij een slidewissel loopt hij door. Eerder bestede tijd blijft per slide bewaard. Pauzeren stopt de tijd voor alle slides. Uitloop verschijnt als positieve overschrijding. **Slidetimer herstellen** zet de bestede tijd van alleen de huidige slide op nul.
 - De presentatorstatus wordt in sessionStorage bewaard. Vernieuwen herstelt dezelfde sessie waar opslag beschikbaar is. Een vernieuwd of opnieuw geopend publieksvenster vraagt de actuele status op. Het scherm toont of de verbinding recent actief was.
