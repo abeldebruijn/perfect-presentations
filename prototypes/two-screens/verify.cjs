@@ -59,6 +59,38 @@ const assert = require('node:assert/strict');
       await presenter.getByText('Publiek openen',{exact:true}).click();
       audience = await reopened;
       await audience.getByRole('heading',{name:'Wat ik wil bespreken'}).waitFor();
+      await audience.setViewportSize({width:1000,height:560});
+      for (const page of [presenter, audience]) {
+        await page.locator('article').evaluate(slide => {
+          const extra = document.createElement('p');
+          extra.textContent = 'Aanvullende inhoud onder de vouw';
+          extra.style.marginTop = '1200px';
+          slide.append(extra);
+        });
+        assert.equal(await page.locator('article').evaluate(slide =>
+          slide.querySelector('ul').getBoundingClientRect().bottom <= slide.getBoundingClientRect().bottom
+        ), true);
+      }
+      await presenter.locator('article').evaluate(slide => {
+        slide.scrollTop = (slide.scrollHeight - slide.clientHeight) / 2;
+      });
+      await audience.waitForFunction(() => {
+        const slide = document.querySelector('article');
+        return Math.abs(slide.scrollTop / (slide.scrollHeight - slide.clientHeight) - 0.5) < 0.02;
+      });
+      await audience.locator('article').evaluate(slide => {
+        slide.scrollTop = (slide.scrollHeight - slide.clientHeight) * 0.75;
+      });
+      await presenter.waitForFunction(() => {
+        const slide = document.querySelector('article');
+        return Math.abs(slide.scrollTop / (slide.scrollHeight - slide.clientHeight) - 0.75) < 0.02;
+      });
+      await presenter.getByText('Volgende',{exact:true}).click();
+      await audience.getByRole('heading',{name:'Probeer de interactie'}).waitFor();
+      assert.equal(await audience.locator('article').evaluate(slide => slide.scrollTop), 0);
+      assert.equal(await presenter.locator('article').evaluate(slide => slide.scrollTop), 0);
+      await presenter.getByText('Vorige',{exact:true}).click();
+      await audience.getByRole('heading',{name:'Wat ik wil bespreken'}).waitFor();
       assert.equal(await audience.locator('header, nav, footer').count(), 0);
       assert.deepEqual(await audience.locator('article').evaluate(el => {
         const rect = el.getBoundingClientRect();
