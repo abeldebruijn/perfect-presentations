@@ -111,11 +111,47 @@ article:focus-visible {
   max-height: 64vh;
   aspect-ratio: 16 / 9;
   padding: clamp(16px, 4vh, 40px) 7%;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   border-radius: 2px;
   box-shadow: none;
   color: #17273a;
 }
+
+.slide-frame { position: relative; }
+.presenter-stage .slide-frame { margin-bottom: 12px; }
+
+.slide-marks {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+.slide-mark-coordinates,
+.slide-mark-owner {
+  position: absolute;
+  inset: 0;
+}
+
+.slide-mark-owner { color: #176652; }
+.slide-mark-owner.peer { color: #245bbd; }
+
+.slide-mark-box {
+  position: absolute;
+  border: 2px solid currentColor;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.slide-peer-cursor {
+  position: absolute;
+  width: 15px;
+  height: 20px;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 62%, 61% 67%, 46% 100%);
+}
+
+.slide-content :is(h1, p, li, .eyebrow)::selection { background: transparent; }
 
 .presenter-stage h1 { font-size: clamp(26px, 3.6vw, 54px); margin: 16px 0; }
 .presenter-stage article p,
