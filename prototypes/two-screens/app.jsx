@@ -1,5 +1,6 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
+import {SlideMarks, useSlideMarks} from './useSlideMarks.jsx';
 import './style.css';
 
 const params = new URLSearchParams(location.hash.slice(1));
@@ -17,6 +18,18 @@ const listeners = new Set();
 const targetOrigin = location.protocol === 'file:' ? '*' : location.origin;
 function send(target, type, payload) {
   target?.postMessage({protocol:'pp-prototype-v1', session, type, payload}, targetOrigin);
+}
+function isSessionMessage(event) {
+  const message = event.data;
+  return message?.protocol === 'pp-prototype-v1' && message.session === session &&
+    (location.protocol === 'file:' || event.origin === location.origin);
+}
+function sendMarks(payload) {
+  send(viewer ? window.opener : audience, 'marks', payload);
+}
+function isPeerMarks(event) {
+  const peer = viewer ? window.opener : audience;
+  return peer && event.source === peer && isSessionMessage(event) && event.data.type === 'marks';
 }
 function persist() {
   try { sessionStorage.setItem(storageKey, JSON.stringify(state)); } catch {}
@@ -54,9 +67,8 @@ function command(action, value) {
   publish();
 }
 window.addEventListener('message', event => {
+  if (!isSessionMessage(event)) return;
   const message = event.data;
-  if (message?.protocol !== 'pp-prototype-v1' || message.session !== session) return;
-  if (location.protocol !== 'file:' && event.origin !== location.origin) return;
   if (viewer) {
     if (event.source !== window.opener || message.type !== 'snapshot') return;
     state = message.payload;
@@ -111,8 +123,10 @@ function App() {
     window.addEventListener('resize', restoreScroll);
     return () => window.removeEventListener('resize', restoreScroll);
   }, [current.slide, current.revealed, scrollProgress]);
+  const marks = useSlideMarks(slideRef, current.slide, sendMarks, isPeerMarks);
 
   function syncScroll(event) {
+    marks.measure();
     const slide = event.currentTarget;
     const scrollable = slide.scrollHeight - slide.clientHeight;
     // Ignore the scroll event produced by applying the other window's position.
@@ -151,21 +165,27 @@ function App() {
     </div>
   );
   const slide = (
-    <article
-      key={current.slide}
-      ref={slideRef}
-      tabIndex={0}
-      aria-label={titles[current.slide]}
-      onScroll={syncScroll}
-      onDoubleClick={viewer ? event => {
-      if (!event.target.closest('button,a,input,select,textarea,[contenteditable]')) void toggleFullscreen();
-    } : undefined}>
-      <div className="eyebrow">TWEE SCHERMEN · {current.slide+1} / {titles.length}</div>
-      <h1>{titles[current.slide]}</h1>
-      {current.slide === 0 && <p>{viewer ? 'Een gedeelde presentatie met ruimte voor interactie.' : 'Sleep het publieksvenster naar je tweede scherm en druk daar op F voor volledig scherm.'}</p>}
-      {current.slide === 1 && <ul><li>Dezelfde slide en interacties op beide schermen</li><li>Een tijdsinschatting voor elke slide</li><li>Navigeren met knoppen en pijltjestoetsen</li></ul>}
-      {current.slide === 2 && <><button onClick={() => command('reveal')}>{current.revealed ? 'Antwoord verbergen' : 'Antwoord tonen'}</button>{current.revealed && <p data-testid="answer">Deze interactie wordt gedeeld met het andere scherm.</p>}<p><input aria-label="Probeer pijltjestoetsen" placeholder="Pijltjes verplaatsen hier de cursor" /></p></>}
-    </article>
+    <div className="slide-frame">
+      <article
+        key={current.slide}
+        ref={slideRef}
+        tabIndex={0}
+        aria-label={titles[current.slide]}
+        {...marks.handlers}
+        onScroll={syncScroll}
+        onDoubleClick={viewer ? event => {
+          if (!event.target.closest('button,a,input,select,textarea,[contenteditable]')) void toggleFullscreen();
+        } : undefined}>
+        <div className="slide-content">
+          <div className="eyebrow">TWEE SCHERMEN · {current.slide+1} / {titles.length}</div>
+          <h1>{titles[current.slide]}</h1>
+          {current.slide === 0 && <p>{viewer ? 'Een gedeelde presentatie met ruimte voor interactie.' : 'Sleep het publieksvenster naar je tweede scherm en druk daar op F voor volledig scherm.'}</p>}
+          {current.slide === 1 && <ul><li>Dezelfde slide en interacties op beide schermen</li><li>Een tijdsinschatting voor elke slide</li><li>Navigeren met knoppen en pijltjestoetsen</li></ul>}
+          {current.slide === 2 && <><button onClick={() => command('reveal')}>{current.revealed ? 'Antwoord verbergen' : 'Antwoord tonen'}</button>{current.revealed && <p data-testid="answer">Deze interactie wordt gedeeld met het andere scherm.</p>}<p><input aria-label="Probeer pijltjestoetsen" placeholder="Pijltjes verplaatsen hier de cursor" /></p></>}
+        </div>
+      </article>
+      <SlideMarks own={marks.own} peer={marks.peer} geometry={marks.geometry}/>
+    </div>
   );
   if (viewer) return <main className="audience-view">{slide}{timer}</main>;
 
