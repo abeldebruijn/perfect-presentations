@@ -81,6 +81,14 @@ function openViewer() {
   if (!opened) { alert('Sta pop-ups toe en klik opnieuw op Publiek openen.'); return; }
   audience = opened;
 }
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch {
+    alert('Volledig scherm is hier niet beschikbaar.');
+  }
+}
 function App() {
   const [current, setCurrent] = useState({...state});
   const [now,setNow] = useState(Date.now());
@@ -90,6 +98,11 @@ function App() {
     const keydown = event => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       if (event.target.closest('input,textarea,select,[contenteditable], [data-arrow-keys]')) return;
+      if (viewer && event.key.toLowerCase() === 'f' && !event.repeat) {
+        event.preventDefault();
+        void toggleFullscreen();
+        return;
+      }
       if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
         event.preventDefault();
         command('move',event.key === 'ArrowRight' ? 1 : -1);
@@ -102,18 +115,20 @@ function App() {
   const remaining = current.estimates[current.slide] - Math.floor(spent/1000);
   const timerVisible = current.visibility === 'both' || current.visibility === (viewer ? 'viewer' : 'presenter');
   const connected = now-lastSeen < 2000;
-  return <main>
-    <header><b>Perfect Presentations <small>· prototype</small></b><span>{viewer ? 'Publiek' : 'Presentator'} · {connected ? 'Verbonden' : 'Wachten op verbinding'}</span></header>
+  return <main className={viewer ? 'audience-view' : undefined}>
+    {!viewer && <header><b>Perfect Presentations <small>· prototype</small></b><span>Presentator · {connected ? 'Verbonden' : 'Wachten op verbinding'}</span></header>}
     {!viewer && <nav><button onClick={openViewer}>Publiek openen</button><button onClick={() => command('toggle')}>{current.running ? 'Pauzeren' : 'Timer starten'}</button><label>Klok op <select aria-label="Klok op" value={current.visibility} onChange={e => command('visibility',e.target.value)}><option value="presenter">Presentator</option><option value="viewer">Publiek</option><option value="both">Beide</option></select></label></nav>}
-    <article>
+    <article onDoubleClick={viewer ? event => {
+      if (!event.target.closest('button,a,input,select,textarea,[contenteditable]')) void toggleFullscreen();
+    } : undefined}>
       <div className="eyebrow">TWEE SCHERMEN · {current.slide+1} / {titles.length}</div>
       <h1>{titles[current.slide]}</h1>
-      {current.slide === 0 && <p>Open het publieksvenster, sleep het naar je tweede scherm en kies Volledig scherm.</p>}
+      {current.slide === 0 && <p>{viewer ? 'Een gedeelde presentatie met ruimte voor interactie.' : 'Sleep het publieksvenster naar je tweede scherm en druk daar op F voor volledig scherm.'}</p>}
       {current.slide === 1 && <ul><li>Dezelfde slide en interacties op beide schermen</li><li>Een tijdsinschatting voor elke slide</li><li>Navigeren met knoppen en pijltjestoetsen</li></ul>}
       {current.slide === 2 && <><button onClick={() => command('reveal')}>{current.revealed ? 'Antwoord verbergen' : 'Antwoord tonen'}</button>{current.revealed && <p data-testid="answer">Deze interactie wordt gedeeld met het andere scherm.</p>}<p><input aria-label="Probeer pijltjestoetsen" placeholder="Pijltjes verplaatsen hier de cursor" /></p></>}
       {timerVisible && <div data-testid="timer" className={remaining < 0 ? 'timer overdue' : 'timer'}>{remaining < 0 ? '+' : ''}{Math.floor(Math.abs(remaining)/60)}:{String(Math.abs(remaining)%60).padStart(2,'0')} <small>{remaining < 0 ? 'uitloop' : 'resterend'}</small></div>}
     </article>
-    <footer><button disabled={current.slide === 0} onClick={() => command('move',-1)}>Vorige</button><button disabled={current.slide === titles.length-1} onClick={() => command('move',1)}>Volgende</button><button onClick={() => document.documentElement.requestFullscreen().catch(() => alert('Volledig scherm is hier niet beschikbaar.'))}>Volledig scherm</button></footer>
+    {!viewer && <footer><button disabled={current.slide === 0} onClick={() => command('move',-1)}>Vorige</button><button disabled={current.slide === titles.length-1} onClick={() => command('move',1)}>Volgende</button><button onClick={toggleFullscreen}>Volledig scherm</button></footer>}
     {!viewer && <aside><label>Schatting huidige slide (seconden) <input aria-label="Schatting" type="number" min="1" value={current.estimates[current.slide]} onChange={e => command('estimate',Number(e.target.value))}/></label><button onClick={() => command('reset')}>Slidetimer herstellen</button><p>Teruggaan bewaart de bestede tijd. Een pauze telt niet mee. De timer loopt door bij een slidewissel. Herstellen zet de huidige slidetijd op nul.</p><p>Volgende slide · {titles[current.slide+1] || 'Einde presentatie'}</p><small>Opnamecontext · {current.events.length} slidewissels vastgelegd. Opnemen wordt in het meetingassistentprototype uitgewerkt.</small></aside>}
   </main>;
 }
