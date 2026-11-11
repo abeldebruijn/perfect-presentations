@@ -8,6 +8,14 @@ Download `prototype.html` en open het in een desktopbrowser. Klik op **Publiek o
 
 De publieksweergave vult het venster met de slide. Navigeer met de pijltjestoetsen in beide vensters of met de knoppen bij de presentator. Op slide 3 wordt **Antwoord tonen** met het andere scherm gedeeld. In het invoerveld houden de pijltjestoetsen hun gewone betekenis. De presentator kiest waar de klok zichtbaar is en past per slide het tijdsbudget aan.
 
+## Aanwijzen en markeren
+
+- Beweeg de muis over de slide om je cursor in het andere venster te tonen.
+- Selecteer tekst om een kader rond de selectie te delen. Hef de selectie op om het kader te wissen.
+- Houd de rechtermuisknop op de slide ingedrukt en sleep om een tijdelijk kader te tekenen. Het kader verdwijnt in beide vensters bij loslaten of annuleren.
+
+De vensters versturen de cursor en kaders rechtstreeks via `postMessage`. Posities zijn relatief aan het slide-oppervlak inclusief scrollbare inhoud. Daardoor schalen ze mee met het venster, maar kunnen kaders iets verschuiven wanneer tekst anders afbreekt. De berichten bevatten coördinaten en geen geselecteerde tekst. Deze markeringen worden niet opgeslagen.
+
 ## Voorgesteld gedrag
 
 - Begin iedere slide met de kerninhoud en plaats aanvullende informatie eronder. Scroll binnen de slide in een van beide vensters om dezelfde relatieve positie in het andere venster te tonen. Een slidewissel begint bovenaan.
