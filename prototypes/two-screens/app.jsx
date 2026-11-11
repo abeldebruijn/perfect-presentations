@@ -115,9 +115,13 @@ function App() {
   const remaining = current.estimates[current.slide] - Math.floor(spent/1000);
   const timerVisible = current.visibility === 'both' || current.visibility === (viewer ? 'viewer' : 'presenter');
   const connected = now-lastSeen < 2000;
-  return <main className={viewer ? 'audience-view' : undefined}>
-    {!viewer && <header><b>Perfect Presentations <small>· prototype</small></b><span>Presentator · {connected ? 'Verbonden' : 'Wachten op verbinding'}</span></header>}
-    {!viewer && <nav><button onClick={openViewer}>Publiek openen</button><button onClick={() => command('toggle')}>{current.running ? 'Pauzeren' : 'Timer starten'}</button><label>Klok op <select aria-label="Klok op" value={current.visibility} onChange={e => command('visibility',e.target.value)}><option value="presenter">Presentator</option><option value="viewer">Publiek</option><option value="both">Beide</option></select></label></nav>}
+  const timer = timerVisible && (
+    <div data-testid="timer" className={`timer${remaining < 0 ? ' overdue' : ''}`}>
+      <span>{remaining < 0 ? '+' : ''}{Math.floor(Math.abs(remaining) / 60)}:{String(Math.abs(remaining) % 60).padStart(2, '0')}</span>{' '}
+      <small>{remaining < 0 ? 'uitloop' : 'resterend'}</small>
+    </div>
+  );
+  const slide = (
     <article onDoubleClick={viewer ? event => {
       if (!event.target.closest('button,a,input,select,textarea,[contenteditable]')) void toggleFullscreen();
     } : undefined}>
@@ -126,10 +130,64 @@ function App() {
       {current.slide === 0 && <p>{viewer ? 'Een gedeelde presentatie met ruimte voor interactie.' : 'Sleep het publieksvenster naar je tweede scherm en druk daar op F voor volledig scherm.'}</p>}
       {current.slide === 1 && <ul><li>Dezelfde slide en interacties op beide schermen</li><li>Een tijdsinschatting voor elke slide</li><li>Navigeren met knoppen en pijltjestoetsen</li></ul>}
       {current.slide === 2 && <><button onClick={() => command('reveal')}>{current.revealed ? 'Antwoord verbergen' : 'Antwoord tonen'}</button>{current.revealed && <p data-testid="answer">Deze interactie wordt gedeeld met het andere scherm.</p>}<p><input aria-label="Probeer pijltjestoetsen" placeholder="Pijltjes verplaatsen hier de cursor" /></p></>}
-      {timerVisible && <div data-testid="timer" className={remaining < 0 ? 'timer overdue' : 'timer'}>{remaining < 0 ? '+' : ''}{Math.floor(Math.abs(remaining)/60)}:{String(Math.abs(remaining)%60).padStart(2,'0')} <small>{remaining < 0 ? 'uitloop' : 'resterend'}</small></div>}
+      {viewer && timer}
     </article>
-    {!viewer && <footer><button disabled={current.slide === 0} onClick={() => command('move',-1)}>Vorige</button><button disabled={current.slide === titles.length-1} onClick={() => command('move',1)}>Volgende</button><button onClick={toggleFullscreen}>Volledig scherm</button></footer>}
-    {!viewer && <aside><label>Schatting huidige slide (seconden) <input aria-label="Schatting" type="number" min="1" value={current.estimates[current.slide]} onChange={e => command('estimate',Number(e.target.value))}/></label><button onClick={() => command('reset')}>Slidetimer herstellen</button><p>Teruggaan bewaart de bestede tijd. Een pauze telt niet mee. De timer loopt door bij een slidewissel. Herstellen zet de huidige slidetijd op nul.</p><p>Volgende slide · {titles[current.slide+1] || 'Einde presentatie'}</p><small>Opnamecontext · {current.events.length} slidewissels vastgelegd. Opnemen wordt in het meetingassistentprototype uitgewerkt.</small></aside>}
-  </main>;
+  );
+  if (viewer) return <main className="audience-view">{slide}</main>;
+
+  return (
+    <main className="presenter-view">
+      <header className="presenter-header">
+        <div className="presenter-brand">
+          <strong>Perfect Presentations</strong>
+          <span>Presentatorweergave</span>
+        </div>
+        <div className="presenter-connection">
+          <span className={connected ? 'connection-status connected' : 'connection-status'}>
+            {connected ? 'Publiek verbonden' : 'Publiek niet verbonden'}
+          </span>
+          <button className="primary-action" onClick={openViewer}>Publiek openen</button>
+        </div>
+      </header>
+
+      <div className="presenter-workspace">
+        <section className="presenter-stage" aria-label="Huidige slide">
+          <div className="stage-label">
+            <span>Huidige slide</span>
+            <span>{current.slide + 1} van {titles.length}</span>
+          </div>
+          {slide}
+          <nav className="slide-controls" aria-label="Slidenavigatie">
+            <button disabled={current.slide === 0} onClick={() => command('move', -1)}>Vorige</button>
+            <button className="primary-action" disabled={current.slide === titles.length - 1} onClick={() => command('move', 1)}>Volgende</button>
+            <button className="fullscreen-action" onClick={toggleFullscreen}>Volledig scherm</button>
+          </nav>
+        </section>
+
+        <aside className="presenter-sidebar" aria-label="Timer en volgende slide">
+          <section className="presenter-panel">
+            <h2>Slidetimer</h2>
+            {timer || <p className="timer-location">Klok zichtbaar bij het publiek</p>}
+            <div className="timer-controls">
+              <button onClick={() => command('toggle')}>{current.running ? 'Pauzeren' : 'Timer starten'}</button>
+              <button className="reset-action" onClick={() => command('reset')}>Slidetimer herstellen</button>
+            </div>
+            <div className="timer-settings">
+              <label>Schatting <span className="estimate-field"><input aria-label="Schatting" type="number" min="1" value={current.estimates[current.slide]} onChange={e => command('estimate', Number(e.target.value))}/> sec</span></label>
+              <label>Klok op <select aria-label="Klok op" value={current.visibility} onChange={e => command('visibility', e.target.value)}>
+                <option value="presenter">Presentator</option>
+                <option value="viewer">Publiek</option>
+                <option value="both">Beide</option>
+              </select></label>
+            </div>
+          </section>
+          <section className="presenter-panel next-slide">
+            <h2>Volgende slide</h2>
+            <p>{titles[current.slide + 1] || 'Einde presentatie'}</p>
+          </section>
+        </aside>
+      </div>
+    </main>
+  );
 }
 createRoot(document.getElementById('root')).render(<App/>);
