@@ -1,6 +1,7 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {SlideMarks, useSlideMarks} from './useSlideMarks.jsx';
+import {ScenarioChart} from './ScenarioChart.jsx';
 import './style.css';
 
 const params = new URLSearchParams(location.hash.slice(1));
@@ -8,10 +9,20 @@ const viewer = params.get('view') === 'viewer';
 const session = params.get('session') || crypto.randomUUID();
 if (!viewer) history.replaceState(null, '', `#session=${session}`);
 const storageKey = `perfect-presentations-prototype:${session}`;
-const titles = ['Twee schermen, één verhaal', 'Wat ik wil bespreken', 'Probeer de interactie'];
-const freshState = () => ({slide:0, scrollProgress:0, estimates:[60,90,120], elapsed:[0,0,0], running:false, since:null, visibility:'presenter', revealed:false, events:[]});
+const titles = ['Twee schermen, één verhaal', 'Wat ik wil bespreken', 'Probeer de interactie', 'Bespaarde uren per week'];
+const estimates = [60, 90, 120, 90];
+const freshState = () => ({slide:0, scrollProgress:0, estimates:[...estimates], elapsed:estimates.map(() => 0), running:false, since:null, visibility:'presenter', revealed:false, scenario:'basis', events:[]});
 let state = freshState();
-try { if (!viewer) state = JSON.parse(sessionStorage.getItem(storageKey)) || state; } catch {}
+try {
+  const saved = !viewer && JSON.parse(sessionStorage.getItem(storageKey));
+  if (saved) {
+    state = {
+      ...state, ...saved,
+      estimates:estimates.map((estimate, index) => saved.estimates?.[index] ?? estimate),
+      elapsed:estimates.map((_, index) => saved.elapsed?.[index] ?? 0),
+    };
+  }
+} catch {}
 let audience = null;
 let lastSeen = 0;
 const listeners = new Set();
@@ -63,6 +74,10 @@ function command(action, value) {
   if (action === 'visibility' && ['presenter','viewer','both'].includes(value)) state.visibility = value;
   if (action === 'estimate' && Number.isFinite(value) && value > 0) state.estimates[state.slide] = value;
   if (action === 'reveal') state.revealed = !state.revealed;
+  if (action === 'scenario') {
+    if (value !== 'basis' && value !== 'alternatief') return;
+    state.scenario = value;
+  }
   if (action === 'reset') { state.elapsed[state.slide] = 0; state.since = state.running ? now : null; }
   publish();
 }
@@ -85,7 +100,7 @@ window.addEventListener('message', event => {
   }
   if (event.source === audience && message.type === 'command') {
     const {action,value} = message.payload || {};
-    if (['move','reveal','scroll'].includes(action) && (action !== 'move' || value === -1 || value === 1)) command(action,value);
+    if (['move','reveal','scroll','scenario'].includes(action) && (action !== 'move' || value === -1 || value === 1)) command(action,value);
   }
 });
 setInterval(() => {
@@ -182,6 +197,7 @@ function App() {
           {current.slide === 0 && <p>{viewer ? 'Een gedeelde presentatie met ruimte voor interactie.' : 'Sleep het publieksvenster naar je tweede scherm en druk daar op F voor volledig scherm.'}</p>}
           {current.slide === 1 && <ul><li>Dezelfde slide en interacties op beide schermen</li><li>Een tijdsinschatting voor elke slide</li><li>Navigeren met knoppen en pijltjestoetsen</li></ul>}
           {current.slide === 2 && <><button onClick={() => command('reveal')}>{current.revealed ? 'Antwoord verbergen' : 'Antwoord tonen'}</button>{current.revealed && <p data-testid="answer">Deze interactie wordt gedeeld met het andere scherm.</p>}<p><input aria-label="Probeer pijltjestoetsen" placeholder="Pijltjes verplaatsen hier de cursor" /></p></>}
+          {current.slide === 3 && <ScenarioChart scenario={current.scenario ?? 'basis'} onScenarioChange={value => command('scenario', value)}/>}
         </div>
       </article>
       <SlideMarks own={marks.own} peer={marks.peer} geometry={marks.geometry}/>
