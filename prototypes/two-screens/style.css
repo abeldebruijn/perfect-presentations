@@ -249,3 +249,22 @@ article:focus-visible {
     border-top: 1px solid var(--line);
   }
 }
+
+.scenario-chart { max-width: 1050px; margin: 0; }
+.scenario-chart figcaption p { margin: 0 0 4px; }
+.scenario-chart figcaption small { color: #4f6274; font-size: 13px; }
+
+.scenario-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 8px;
+}
+
+.scenario-controls button { padding: 7px 11px; font-size: 14px; }
+.scenario-controls button[aria-pressed="true"] { background: #17273a; border-color: #17273a; color: #fff; }
+.scenario-legend { display: inline-flex; align-items: center; gap: 6px; margin-inline-start: 6px; font-size: 14px; }
+.scenario-legend i { width: 14px; height: 3px; }
+.scenario-plot { color: #17273a; }
+.scenario-plot svg:focus-visible { outline: 2px solid #3979f4; outline-offset: -2px; }
