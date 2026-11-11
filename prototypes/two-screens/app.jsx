@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import './style.css';
 
@@ -8,7 +8,7 @@ const session = params.get('session') || crypto.randomUUID();
 if (!viewer) history.replaceState(null, '', `#session=${session}`);
 const storageKey = `perfect-presentations-prototype:${session}`;
 const titles = ['Twee schermen, één verhaal', 'Wat ik wil bespreken', 'Probeer de interactie'];
-const freshState = () => ({slide:0, estimates:[60,90,120], elapsed:[0,0,0], running:false, since:null, visibility:'presenter', revealed:false, events:[]});
+const freshState = () => ({slide:0, scrollProgress:0, estimates:[60,90,120], elapsed:[0,0,0], running:false, since:null, visibility:'presenter', revealed:false, events:[]});
 let state = freshState();
 try { if (!viewer) state = JSON.parse(sessionStorage.getItem(storageKey)) || state; } catch {}
 let audience = null;
@@ -32,12 +32,18 @@ function settle(now) {
 }
 function command(action, value) {
   if (viewer) { send(window.opener, 'command', {action,value}); return; }
+  if (action === 'scroll') {
+    if (value?.slide !== state.slide || !Number.isFinite(value.progress) ||
+        value.progress < 0 || value.progress > 1 || value.progress === state.scrollProgress) return;
+    state.scrollProgress = value.progress;
+  }
   const now = Date.now();
   if (action === 'move') {
     const next = Math.max(0, Math.min(titles.length-1, state.slide + value));
     if (next === state.slide) return;
     settle(now);
     state.slide = next;
+    state.scrollProgress = 0;
     state.events.push({session, deck:'two-screens', version:1, slideId:`slide-${next+1}`, at:now});
   }
   if (action === 'toggle') { settle(now); state.running = !state.running; state.since = state.running ? now : null; }
@@ -67,7 +73,7 @@ window.addEventListener('message', event => {
   }
   if (event.source === audience && message.type === 'command') {
     const {action,value} = message.payload || {};
-    if (['move','reveal'].includes(action) && (action !== 'move' || value === -1 || value === 1)) command(action,value);
+    if (['move','reveal','scroll'].includes(action) && (action !== 'move' || value === -1 || value === 1)) command(action,value);
   }
 });
 setInterval(() => {
@@ -92,6 +98,29 @@ async function toggleFullscreen() {
 function App() {
   const [current, setCurrent] = useState({...state});
   const [now,setNow] = useState(Date.now());
+  const slideRef = useRef(null);
+  const scrollProgress = current.scrollProgress ?? 0;
+  useLayoutEffect(() => {
+    const slide = slideRef.current;
+    const restoreScroll = () => {
+      const scrollable = slide.scrollHeight - slide.clientHeight;
+      const top = scrollProgress * scrollable;
+      if (Math.abs(slide.scrollTop - top) > 0.5) slide.scrollTop = top;
+    };
+    restoreScroll();
+    window.addEventListener('resize', restoreScroll);
+    return () => window.removeEventListener('resize', restoreScroll);
+  }, [current.slide, current.revealed, scrollProgress]);
+
+  function syncScroll(event) {
+    const slide = event.currentTarget;
+    const scrollable = slide.scrollHeight - slide.clientHeight;
+    // Ignore the scroll event produced by applying the other window's position.
+    if (scrollable <= 0 || state.slide !== current.slide ||
+        Math.abs(slide.scrollTop - (state.scrollProgress ?? 0) * scrollable) <= 0.5) return;
+    const progress = Math.max(0, Math.min(1, slide.scrollTop / scrollable));
+    command('scroll', {slide:current.slide, progress});
+  }
   useEffect(() => {
     listeners.add(setCurrent);
     const interval = setInterval(() => setNow(Date.now()), 100);
@@ -122,7 +151,13 @@ function App() {
     </div>
   );
   const slide = (
-    <article onDoubleClick={viewer ? event => {
+    <article
+      key={current.slide}
+      ref={slideRef}
+      tabIndex={0}
+      aria-label={titles[current.slide]}
+      onScroll={syncScroll}
+      onDoubleClick={viewer ? event => {
       if (!event.target.closest('button,a,input,select,textarea,[contenteditable]')) void toggleFullscreen();
     } : undefined}>
       <div className="eyebrow">TWEE SCHERMEN · {current.slide+1} / {titles.length}</div>
@@ -130,10 +165,9 @@ function App() {
       {current.slide === 0 && <p>{viewer ? 'Een gedeelde presentatie met ruimte voor interactie.' : 'Sleep het publieksvenster naar je tweede scherm en druk daar op F voor volledig scherm.'}</p>}
       {current.slide === 1 && <ul><li>Dezelfde slide en interacties op beide schermen</li><li>Een tijdsinschatting voor elke slide</li><li>Navigeren met knoppen en pijltjestoetsen</li></ul>}
       {current.slide === 2 && <><button onClick={() => command('reveal')}>{current.revealed ? 'Antwoord verbergen' : 'Antwoord tonen'}</button>{current.revealed && <p data-testid="answer">Deze interactie wordt gedeeld met het andere scherm.</p>}<p><input aria-label="Probeer pijltjestoetsen" placeholder="Pijltjes verplaatsen hier de cursor" /></p></>}
-      {viewer && timer}
     </article>
   );
-  if (viewer) return <main className="audience-view">{slide}</main>;
+  if (viewer) return <main className="audience-view">{slide}{timer}</main>;
 
   return (
     <main className="presenter-view">
