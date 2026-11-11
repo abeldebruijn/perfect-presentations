@@ -29,7 +29,6 @@
 }
 
 .presenter-view {
-  --surface: #1b1e23;
   --line: #30343b;
   --muted: #aab0ba;
   --accent: #d7ed9f;
@@ -91,7 +90,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
   align-items: start;
-  gap: 20px;
+  gap: clamp(20px, 2.5vw, 36px);
 }
 
 .stage-label {
@@ -108,7 +107,7 @@
   min-height: 340px;
   aspect-ratio: 16 / 9;
   margin-bottom: 12px;
-  border-radius: 12px;
+  border-radius: 2px;
   box-shadow: none;
   color: #17273a;
 }
@@ -123,12 +122,12 @@
   min-height: 38px;
   padding: 8px 12px;
   border: 1px solid var(--line);
-  background: #242830;
+  background: transparent;
   color: #f4f5f6;
   font-size: 13px;
 }
 
-.presenter-view :is(header, nav) .primary-action {
+.presenter-view nav .primary-action {
   background: var(--accent);
   border-color: var(--accent);
   color: #202819;
@@ -136,24 +135,25 @@
 }
 
 .presenter-view :is(header, nav, aside) button:hover:not(:disabled) {
-  filter: brightness(1.12);
+  background-color: #ffffff12;
 }
+
+.presenter-view nav .primary-action:hover:not(:disabled) { background-color: #e5f5c2; }
 
 .fullscreen-action { margin-left: auto; }
 
 .presenter-view .presenter-sidebar {
   display: grid;
-  gap: 12px;
+  gap: 24px;
   margin: 25px 0 0;
-  padding: 0;
+  padding: 0 0 0 clamp(20px, 2.5vw, 36px);
   border: 0;
+  border-left: 1px solid var(--line);
 }
 
-.presenter-panel {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+.presenter-panel + .presenter-panel {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
 }
 
 .presenter-panel h2 {
@@ -166,9 +166,9 @@
 .presenter-panel .timer {
   position: static;
   margin-bottom: 14px;
-  font-size: 48px;
+  font-size: clamp(48px, 5vw, 66px);
   line-height: 1.05;
-  letter-spacing: -.05em;
+  letter-spacing: -.04em;
 }
 
 .presenter-panel .timer small {
@@ -201,6 +201,11 @@
 
 @media (max-width: 760px) {
   .presenter-workspace { grid-template-columns: minmax(0, 1fr); }
-  .presenter-view .presenter-sidebar { margin-top: 0; }
+  .presenter-view .presenter-sidebar {
+    margin-top: 0;
+    padding: 20px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
   .presenter-stage article { min-height: 260px; }
 }
