@@ -110,9 +110,10 @@ setInterval(() => {
 function openViewer() {
   const url = new URL(location.href);
   url.hash = `view=viewer&session=${session}`;
-  const opened = window.open(url, `pp-${session}`, 'popup,width=1200,height=760');
+  const opened = window.open(url, `pp-audience-${session}`);
   if (!opened) { alert('Sta pop-ups toe en klik opnieuw op Publiek openen.'); return; }
   audience = opened;
+  opened.focus();
 }
 async function toggleFullscreen() {
   try {
@@ -155,19 +156,24 @@ function App() {
     const interval = setInterval(() => setNow(Date.now()), 100);
     const keydown = event => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-      if (event.target.closest('input,textarea,select,[contenteditable], [data-arrow-keys]')) return;
+      if (event.target.closest('input,textarea,select,[contenteditable]')) return;
       if (viewer && event.key.toLowerCase() === 'f' && !event.repeat) {
         event.preventDefault();
         void toggleFullscreen();
         return;
       }
       if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        if (event.target.closest('[data-arrow-keys]')) return;
         event.preventDefault();
         command('move',event.key === 'ArrowRight' ? 1 : -1);
       }
     };
     window.addEventListener('keydown',keydown);
-    return () => {listeners.delete(setCurrent); clearInterval(interval); window.removeEventListener('keydown',keydown);};
+    return () => {
+      listeners.delete(setCurrent);
+      clearInterval(interval);
+      window.removeEventListener('keydown', keydown);
+    };
   }, []);
   const spent = current.elapsed[current.slide] + (current.running ? now-current.since : 0);
   const remaining = current.estimates[current.slide] - Math.floor(spent/1000);
@@ -192,15 +198,15 @@ function App() {
           if (!event.target.closest('button,a,input,select,textarea,[contenteditable]')) void toggleFullscreen();
         } : undefined}>
         <div className="slide-content">
-          <div className="eyebrow">TWEE SCHERMEN · {current.slide+1} / {titles.length}</div>
-          <h1>{titles[current.slide]}</h1>
-          {current.slide === 0 && <p>{viewer ? 'Een gedeelde presentatie met ruimte voor interactie.' : 'Sleep het publieksvenster naar je tweede scherm en druk daar op F voor volledig scherm.'}</p>}
-          {current.slide === 1 && <ul><li>Dezelfde slide en interacties op beide schermen</li><li>Een tijdsinschatting voor elke slide</li><li>Navigeren met knoppen en pijltjestoetsen</li></ul>}
-          {current.slide === 2 && <><button onClick={() => command('reveal')}>{current.revealed ? 'Antwoord verbergen' : 'Antwoord tonen'}</button>{current.revealed && <p data-testid="answer">Deze interactie wordt gedeeld met het andere scherm.</p>}<p><input aria-label="Probeer pijltjestoetsen" placeholder="Pijltjes verplaatsen hier de cursor" /></p></>}
+          <div className="eyebrow" data-selection-block="eyebrow">TWEE SCHERMEN · {current.slide+1} / {titles.length}</div>
+          <h1 data-selection-block="title">{titles[current.slide]}</h1>
+          {current.slide === 0 && <p data-selection-block="intro">Een gedeelde presentatie met ruimte voor interactie.</p>}
+          {current.slide === 1 && <ul><li data-selection-block="agenda-1">Dezelfde slide en interacties op beide schermen</li><li data-selection-block="agenda-2">Een tijdsinschatting voor elke slide</li><li data-selection-block="agenda-3">Navigeren met knoppen en pijltjestoetsen</li></ul>}
+          {current.slide === 2 && <><button onClick={() => command('reveal')}>{current.revealed ? 'Antwoord verbergen' : 'Antwoord tonen'}</button>{current.revealed && <p data-testid="answer" data-selection-block="answer">Deze interactie wordt gedeeld met het andere scherm.</p>}<p><input aria-label="Probeer pijltjestoetsen" placeholder="Pijltjes verplaatsen hier de cursor" /></p></>}
           {current.slide === 3 && <ScenarioChart scenario={current.scenario ?? 'basis'} onScenarioChange={value => command('scenario', value)}/>}
         </div>
       </article>
-      <SlideMarks own={marks.own} peer={marks.peer} geometry={marks.geometry}/>
+      <SlideMarks slideRef={slideRef} slideIndex={current.slide} own={marks.own} peer={marks.peer} geometry={marks.geometry}/>
     </div>
   );
   if (viewer) return <main className="audience-view">{slide}{timer}</main>;
@@ -232,6 +238,7 @@ function App() {
             <button className="primary-action" disabled={current.slide === titles.length - 1} onClick={() => command('move', 1)}>Volgende</button>
             <button className="fullscreen-action" onClick={toggleFullscreen}>Volledig scherm</button>
           </nav>
+          {current.slide === 0 && <p className="stage-label">Sleep het publiekstabblad uit de tabbalk naar je tweede scherm. Druk daar op F voor volledig scherm.</p>}
         </section>
 
         <aside className="presenter-sidebar" aria-label="Timer en volgende slide">

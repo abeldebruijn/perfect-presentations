@@ -4,7 +4,7 @@ React-prototype voor [het tweeschermen-issue](https://github.com/abeldebruijn/pe
 
 ## Bekijken
 
-Download `prototype.html` en open het in een desktopbrowser. Klik op **Publiek openen**, sleep het nieuwe venster naar het tweede scherm en druk daar op **F** of dubbelklik op de slide voor volledig scherm. Sta pop-ups voor dit bestand toe als de browser daarom vraagt.
+Download `prototype.html` en open het in een desktopbrowser. Klik op **Publiek openen**, sleep het publiekstabblad uit de tabbalk naar het tweede scherm en druk daar op **F** of dubbelklik op de slide voor volledig scherm. Sta pop-ups voor dit bestand toe als de browser daarom vraagt.
 
 De publieksweergave vult het venster met de slide. Navigeer met de pijltjestoetsen in beide vensters of met de knoppen bij de presentator. Op slide 3 wordt **Antwoord tonen** met het andere scherm gedeeld. In het invoerveld houden de pijltjestoetsen hun gewone betekenis. De presentator kiest waar de klok zichtbaar is en past per slide het tijdsbudget aan.
 

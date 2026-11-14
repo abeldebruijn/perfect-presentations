@@ -33,8 +33,8 @@ export function ScenarioChart({scenario, onScenarioChange}) {
   return (
     <figure className="scenario-chart">
       <figcaption>
-        <p>Het alternatief bespaart in week 6 twee keer zoveel uren als het basisscenario.</p>
-        <small>Bron · Illustratieve data voor deze proef</small>
+        <p data-selection-block="chart-description">Het alternatief bespaart in week 6 twee keer zoveel uren als het basisscenario.</p>
+        <small data-selection-block="chart-source">Bron · Illustratieve data voor deze proef</small>
       </figcaption>
       <div className="scenario-controls" role="group" aria-label="Scenario kiezen">
         {Object.entries(scenarios).map(([key, option]) => (
