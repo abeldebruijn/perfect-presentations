@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="nl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meetings · Perfect Presentations</title>
+<style>
+  :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #172435; background: #f4f7fa; }
+  body { margin: 0; }
+  main { max-width: 68rem; margin: 2rem auto; padding: 0 1rem; }
+  header { margin-bottom: 1.5rem; }
+  h1, h2, h3 { line-height: 1.25; }
+  a, button { color: #075c89; }
+  button { font: inherit; background: white; border: 1px solid #adc4d2; border-radius: .35rem; padding: .4rem .7rem; cursor: pointer; }
+  button:disabled { cursor: wait; }
+  .layout { display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(0, 2fr); gap: 1rem; }
+  aside, article { background: white; padding: 1rem; border-radius: .6rem; border: 1px solid #dce5eb; }
+  aside button { margin: .25rem 0; }
+  li { margin-bottom: .55rem; }
+  audio { width: 100%; margin-block: .5rem; }
+  #passages { padding-left: 0; list-style: none; }
+  #passages li { border-top: 1px solid #e5ebf0; padding: .7rem; margin: 0; scroll-margin-top: 1rem; }
+  #passages p { margin: .35rem 0; }
+  #passages .selected { background: #eaf5fc; }
+  .meta { color: #47596c; font-size: .9rem; }
+  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+</style>
+<main>
+  <header>
+    <a href="/route.html">Terug naar de presentatie</a>
+    <h1>Meetings</h1>
+  </header>
+  <div class="layout">
+    <aside>
+      <h2>Sessies</h2>
+      <ul id="sessions"></ul>
+      <button id="example">Open voorbeeldgesprek</button>
+      <div><label><input type="checkbox" id="interrupt"> Onderbreek verwerking</label></div>
+      <p id="list-feedback" role="status"></p>
+      <details>
+        <summary>Verwerking en opslag</summary>
+        <p>Audio gaat naar de lokale server en whisper.cpp. Desert Ant Who verwerkt diezelfde audio lokaal. Ollama krijgt lokaal het transcript met passage-ID’s. Audio, tijdlijn en resultaten staan samen in de lokale proefmap.</p>
+      </details>
+    </aside>
+    <article id="detail" hidden>
+      <h2 id="meeting-title"></h2>
+      <p id="meeting-date" class="meta"></p>
+      <p id="status" role="status"></p>
+      <button id="retry" hidden>Verwerking opnieuw proberen</button>
+      <audio id="audio" controls preload="metadata"></audio>
+      <p id="active-slide" class="meta"></p>
+      <div id="notes" hidden>
+        <h3>Samenvatting</h3>
+        <ul id="summary"></ul>
+        <h3>Actiepunten</h3>
+        <ul id="actions"></ul>
+      </div>
+      <div id="transcript" hidden>
+        <h3>Transcript</h3>
+        <ul id="passages"></ul>
+      </div>
+    </article>
+  </div>
+</main>
+<script type="module">
+  const find = id => document.getElementById(id);
+  const audio = find('audio');
+  let current;
+  let previous;
+  let selected;
+  let revision = 0;
+  let timer;
+  const date = value => new Date(value).toLocaleString('nl-NL');
+  const time = value => {
+    const seconds = Math.floor(value);
+    return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+  };
+  const status = {
+    saved: 'Opgeslagen', processing: 'Wordt verwerkt', failed: 'Verwerking gestopt', ready: 'Klaar',
+  };
+
+  async function request(path, options) {
+    const response = await fetch('/api/meetings' + path, options);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data;
+  }
+  function element(tag, text, attributes = {}) {
+    const node = document.createElement(tag);
+    node.textContent = text;
+    for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+    return node;
+  }
+  function updateSlide() {
+    const active = current?.slides.findLast(slide => slide.at <= audio.currentTime);
+    find('active-slide').textContent = active ? 'Slide tijdens afspelen · ' + active.title : '';
+  }
+  audio.addEventListener('timeupdate', updateSlide);
+  function jump(passage) {
+    audio.currentTime = passage.seek ?? passage.start;
+    updateSlide();
+    selected = passage.id;
+    for (const row of find('passages').children) row.classList.toggle('selected', row.id === selected);
+    find(selected).scrollIntoView({block: 'nearest'});
+    find(selected).focus({preventScroll: true});
+  }
+  function render(session) {
+    if (current?.id !== session.id) {
+      selected = null;
+      previous = null;
+      audio.src = '/api/meetings/' + session.id + '/audio';
+    }
+    current = session;
+    const snapshot = JSON.stringify(session);
+    if (snapshot === previous) return;
+    previous = snapshot;
+    find('detail').hidden = false;
+    find('meeting-title').textContent = session.deck;
+    find('meeting-date').textContent = date(session.date);
+    const timing = Object.entries(session.timings ?? {}).map(([step, ms]) => step + ' ' + (ms / 1000).toFixed(2) + ' s');
+    find('status').textContent = [status[session.status], session.stage, session.error, timing.join(' · ')].filter(Boolean).join(' · ');
+    find('retry').hidden = session.status !== 'failed';
+    find('notes').hidden = session.status !== 'ready';
+    find('transcript').hidden = !session.passages?.length;
+    updateSlide();
+
+    find('passages').replaceChildren(...(session.passages ?? []).map(passage => {
+      const row = element('li', '', {id: passage.id, tabindex: '-1'});
+      row.classList.toggle('selected', passage.id === selected);
+      const parts = [
+        passage.speakers.map(index => 'Spreker ' + (index + 1)).join(', ') || 'Spreker onbekend',
+        passage.simultaneous ? 'Stemmen overlappen' : '',
+        passage.uncertain ? 'Sprekerstoewijzing onzeker' : '',
+        passage.slides.map(slide => slide.title).join(' → '),
+      ].filter(Boolean);
+      const seek = element('button', time(passage.start) + ' – ' + time(passage.end));
+      seek.onclick = () => jump(passage);
+      row.append(seek, element('p', passage.text), element('span', parts.join(' · '), {class: 'meta'}));
+      return row;
+    }));
+    for (const field of ['summary', 'actions']) {
+      const entries = session[field] ?? [];
+      find(field).replaceChildren(...entries.map(entry => {
+        const passage = session.passages.find(candidate => candidate.id === entry.passageId);
+        const li = element('li', entry.text + ' ');
+        const seek = element('button', 'Naar ' + time(passage.seek ?? passage.start) + ' · ' + passage.slides.map(slide => slide.title).join(' → '));
+        seek.onclick = () => jump(passage);
+        li.append(seek);
+        return li;
+      }));
+      if (!entries.length && session.status === 'ready') find(field).append(element('li', 'Geen'));
+    }
+  }
+  function refresh() {
+    clearTimeout(timer);
+    const version = ++revision;
+    update(version);
+  }
+  async function update(version) {
+    try {
+      const requested = new URLSearchParams(location.search).get('id');
+      const sessions = await request('');
+      const session = requested ? await request('/' + encodeURIComponent(requested)) : sessions[0];
+      if (version !== revision) return;
+      find('list-feedback').textContent = sessions.length ? '' : 'Er zijn nog geen sessies.';
+      const list = find('sessions');
+      const listSnapshot = JSON.stringify([session?.id, sessions.map(({id, deck, date, status, stage}) => ({id, deck, date, status, stage}))]);
+      if (list.dataset.snapshot !== listSnapshot) {
+        list.dataset.snapshot = listSnapshot;
+        list.replaceChildren(...sessions.map(item => {
+          const link = element('a', item.deck, {href: '?id=' + item.id});
+          if (item.id === session?.id) link.setAttribute('aria-current', 'page');
+          link.onclick = event => {
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            history.pushState(null, '', link.href);
+            refresh();
+          };
+          const li = element('li', '');
+          li.append(link, element('div', date(item.date) + ' · ' + status[item.status], {class: 'meta'}));
+          return li;
+        }));
+      }
+      if (session) render(session);
+      timer = setTimeout(() => update(version), 1000);
+    } catch (error) {
+      if (version !== revision) return;
+      find('list-feedback').textContent = error.message;
+    }
+  }
+  async function action(button, path, headers) {
+    button.disabled = true;
+    try {
+      const {id} = await request(path, {method: 'POST', headers});
+      history.pushState(null, '', '?id=' + id);
+      refresh();
+    } catch (error) {
+      find('status').textContent = error.message;
+      find('list-feedback').textContent = error.message;
+    } finally { button.disabled = false; }
+  }
+  find('example').onclick = () => action(find('example'), '/example', {'X-Interrupt': find('interrupt').checked ? 'yes' : 'no'});
+  find('retry').onclick = () => action(find('retry'), '/' + current.id + '/retry');
+  addEventListener('popstate', refresh);
+  refresh();
+</script>
+</html>

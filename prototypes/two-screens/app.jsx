@@ -2,6 +2,7 @@ import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {SlideMarks, useSlideMarks} from './useSlideMarks.jsx';
 import {ScenarioChart} from './ScenarioChart.jsx';
+import {Recorder} from './meeting-probe/Recorder.jsx';
 import './style.css';
 
 const params = new URLSearchParams(location.hash.slice(1));
@@ -26,6 +27,12 @@ try {
 let audience = null;
 let lastSeen = 0;
 const listeners = new Set();
+const moveListeners = new Set();
+const getSlide = () => ({id: `slide-${state.slide + 1}`, title: titles[state.slide]});
+function subscribeToMoves(listener) {
+  moveListeners.add(listener);
+  return () => moveListeners.delete(listener);
+}
 const targetOrigin = location.protocol === 'file:' ? '*' : location.origin;
 function send(target, type, payload) {
   target?.postMessage({protocol:'pp-prototype-v1', session, type, payload}, targetOrigin);
@@ -69,6 +76,7 @@ function command(action, value) {
     state.slide = next;
     state.scrollProgress = 0;
     state.events.push({session, deck:'two-screens', version:1, slideId:`slide-${next+1}`, at:now});
+    moveListeners.forEach(listener => listener(getSlide()));
   }
   if (action === 'toggle') { settle(now); state.running = !state.running; state.since = state.running ? now : null; }
   if (action === 'visibility' && ['presenter','viewer','both'].includes(value)) state.visibility = value;
@@ -216,6 +224,7 @@ function App() {
           <span className={connected ? 'connection-status connected' : 'connection-status'}>
             {connected ? 'Publiek verbonden' : 'Publiek niet verbonden'}
           </span>
+          {location.pathname === '/route.html' && <a href="/meetings.html" target="_blank" rel="noreferrer">Meetings</a>}
           <button className="primary-action" onClick={openViewer}>Publiek openen</button>
         </div>
       </header>
@@ -255,6 +264,8 @@ function App() {
             <h2>Volgende slide</h2>
             <p>{titles[current.slide + 1] || 'Einde presentatie'}</p>
           </section>
+          {location.pathname === '/route.html' &&
+            <Recorder getSlide={getSlide} subscribeToMoves={subscribeToMoves}/>}
         </aside>
       </div>
     </main>
