@@ -20,6 +20,62 @@ function bounds(start, end) {
   };
 }
 
+const selectionBlocks = '[data-selection-block]';
+
+function* textNodes(block) {
+  const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) yield node;
+}
+
+function readSelection(slide, range) {
+  const segments = [];
+  for (const block of slide.querySelectorAll(selectionBlocks)) {
+    if (!range.intersectsNode(block)) continue;
+    let offset = 0;
+    let start;
+    let end;
+    for (const node of textNodes(block)) {
+      if (range.intersectsNode(node)) {
+        start ??= offset + (node === range.startContainer ? range.startOffset : 0);
+        end = offset + (node === range.endContainer ? range.endOffset : node.length);
+      }
+      offset += node.length;
+    }
+    if (start < end) segments.push({block:block.dataset.selectionBlock, start, end});
+  }
+  return segments.length ? segments : null;
+}
+
+function selectionBoxes(slide, segments, geometry) {
+  if (!Array.isArray(segments)) return [];
+  const origin = slide.getBoundingClientRect();
+  const blocks = Array.from(slide.querySelectorAll(selectionBlocks));
+  const range = document.createRange();
+  const boxes = [];
+
+  for (const segment of segments) {
+    const block = blocks.find(node => node.dataset.selectionBlock === segment.block);
+    if (!block) continue;
+    let offset = 0;
+    for (const node of textNodes(block)) {
+      const start = Math.max(0, segment.start - offset);
+      const end = Math.min(node.length, segment.end - offset);
+      offset += node.length;
+      if (start >= end) continue;
+      range.setStart(node, start);
+      range.setEnd(node, end);
+      for (const rect of range.getClientRects()) {
+        if (rect.width === 0 || rect.height === 0) continue;
+        boxes.push({
+          left:rect.left - origin.left + geometry.x, top:rect.top - origin.top + geometry.y,
+          width:rect.width, height:rect.height,
+        });
+      }
+    }
+  }
+  return boxes;
+}
+
 export function useSlideMarks(slideRef, slideIndex, sendMarks, isPeerMessage) {
   const local = useRef(emptyMarks);
   const frame = useRef(null);
@@ -88,8 +144,7 @@ export function useSlideMarks(slideRef, slideIndex, sendMarks, isPeerMessage) {
         if (local.current.selection) update({selection:null});
         return;
       }
-      const rect = selection.getRangeAt(0).getBoundingClientRect();
-      update({selection:bounds(slidePoint(slide, rect.left, rect.top), slidePoint(slide, rect.right, rect.bottom))});
+      update({selection:readSelection(slide, selection.getRangeAt(0))});
     };
     window.addEventListener('message', receive);
     window.addEventListener('blur', clear);
@@ -145,7 +200,19 @@ export function useSlideMarks(slideRef, slideIndex, sendMarks, isPeerMessage) {
   return {handlers, measure, own, peer, geometry};
 }
 
-export function SlideMarks({own, peer, geometry}) {
+export function SlideMarks({slideRef, slideIndex, own, peer, geometry}) {
+  const [selections, setSelections] = useState({local:[], peer:[]});
+  const localSelection = own.selection;
+  const peerSelection = peer.selection;
+  useLayoutEffect(() => {
+    if (!geometry) return;
+    const slide = slideRef.current;
+    setSelections({
+      local:selectionBoxes(slide, localSelection, geometry),
+      peer:selectionBoxes(slide, peerSelection, geometry),
+    });
+  }, [slideRef, slideIndex, geometry, localSelection, peerSelection]);
+
   if (!geometry) return null;
   return (
     <div className="slide-marks" aria-hidden="true">
@@ -155,13 +222,13 @@ export function SlideMarks({own, peer, geometry}) {
       }}>
         {[[own, 'local'], [peer, 'peer']].map(([marks, owner]) => (
           <div key={owner} className={`slide-mark-owner ${owner}`}>
-            {['selection', 'drag'].map(type => {
-              const box = marks[type];
-              return box && <div key={type} className={`slide-mark-box ${type}`} style={{
-                left:`${box.left * 100}%`, top:`${box.top * 100}%`,
-                width:`${box.width * 100}%`, height:`${box.height * 100}%`,
-              }}/>;
-            })}
+            {selections[owner].map((box, index) => (
+              <div key={index} className="slide-mark-box selection" style={box}/>
+            ))}
+            {marks.drag && <div className="slide-mark-box drag" style={{
+              left:`${marks.drag.left * 100}%`, top:`${marks.drag.top * 100}%`,
+              width:`${marks.drag.width * 100}%`, height:`${marks.drag.height * 100}%`,
+            }}/>}
             {owner === 'peer' && marks.cursor && <div className="slide-peer-cursor" style={{
               left:`${marks.cursor.x * 100}%`, top:`${marks.cursor.y * 100}%`,
             }}/>}

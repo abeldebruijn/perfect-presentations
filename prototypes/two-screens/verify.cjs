@@ -3,6 +3,31 @@ const {createServer} = require('node:http');
 const {readFileSync,writeFileSync} = require('node:fs');
 const assert = require('node:assert/strict');
 
+async function selectText(page, selector, start, end) {
+  await page.locator(selector).evaluate((target, [start, end]) => {
+    const range = document.createRange();
+    range.setStart(target.firstChild, start);
+    range.setEnd(target.firstChild, end ?? target.firstChild.length);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  }, [start, end]);
+}
+
+async function assertSelectionMatches(page, selector, start = 0, end = null) {
+  const { expected, actual } = await page.locator(selector).evaluate((target, [start, end]) => {
+    const range = document.createRange();
+    range.setStart(target.firstChild, start);
+    range.setEnd(target.firstChild, end ?? target.firstChild.length);
+    const rects = boxes => Array.from(boxes, rect =>
+      [rect.x, rect.y, rect.width, rect.height].map(Math.round));
+    return {
+      expected: rects(range.getClientRects()),
+      actual: rects(Array.from(document.querySelectorAll('.peer .selection'), mark => mark.getBoundingClientRect())),
+    };
+  }, [start, end]);
+  assert.deepEqual(actual, expected, 'Selection must follow the text layout in the receiving window');
+}
+
 (async () => {
   const files = {
     '/grafiek': ['route.html', 'text/html'],
@@ -28,6 +53,21 @@ const assert = require('node:assert/strict');
       await presenter.getByText('Publiek openen',{exact:true}).click();
       let audience = await popup;
       await audience.getByRole('heading',{name:'Twee schermen, één verhaal'}).waitFor();
+      await audience.setViewportSize({width:760,height:640});
+      await selectText(presenter, 'h1', 0, null);
+      await audience.locator('.peer .selection').first().waitFor();
+      await assertSelectionMatches(audience, 'h1');
+      await audience.setViewportSize({width:320,height:640});
+      await audience.locator('.peer .selection').nth(1).waitFor();
+      await assertSelectionMatches(audience, 'h1');
+      await presenter.evaluate(() => window.getSelection().removeAllRanges());
+      await audience.locator('.peer .selection').first().waitFor({state:'detached'});
+      await selectText(presenter, 'article p', 4, 22);
+      await audience.locator('.peer .selection').first().waitFor();
+      await assertSelectionMatches(audience, 'article p', 4, 22);
+      await presenter.evaluate(() => window.getSelection().removeAllRanges());
+      await audience.locator('.peer .selection').first().waitFor({state:'detached'});
+      await audience.setViewportSize({width:1000,height:760});
       await presenter.locator('article').click();
       await presenter.keyboard.press('ArrowRight');
       await audience.getByRole('heading',{name:'Wat ik wil bespreken'}).waitFor();
@@ -46,9 +86,10 @@ const assert = require('node:assert/strict');
         selection.removeAllRanges();
         selection.addRange(range);
       });
-      await presenter.locator('.peer .selection').waitFor();
+      await presenter.locator('.peer .selection').first().waitFor();
+      await assertSelectionMatches(presenter, 'h1');
       await audience.evaluate(() => window.getSelection().removeAllRanges());
-      await presenter.locator('.peer .selection').waitFor({state:'detached'});
+      await presenter.locator('.peer .selection').first().waitFor({state:'detached'});
       await audience.locator('article').click();
       await audience.keyboard.press('ArrowRight');
       await presenter.getByRole('heading',{name:'Probeer de interactie'}).waitFor();
@@ -83,7 +124,8 @@ const assert = require('node:assert/strict');
       await audience.getByTestId('answer').waitFor();
       await presenter.reload();
       await presenter.getByRole('heading',{name:'Probeer de interactie'}).waitFor();
-      await audience.locator('article').click();
+      await presenter.getByText('Publiek verbonden',{exact:true}).waitFor();
+      await audience.locator('article').focus();
       await audience.keyboard.press('ArrowLeft');
       await presenter.getByRole('heading',{name:'Wat ik wil bespreken'}).waitFor();
       await audience.close();
@@ -128,8 +170,12 @@ const assert = require('node:assert/strict');
         const rect = el.getBoundingClientRect();
         return [rect.x, rect.y, rect.width === innerWidth, rect.height >= innerHeight, getComputedStyle(el).borderRadius];
       }), [0, 0, true, true, '0px']);
+      await audience.bringToFront();
+      await audience.locator('article').focus();
       await audience.keyboard.press('f');
-      await audience.waitForFunction(() => !!document.fullscreenElement);
+      await audience.waitForFunction(() => document.fullscreenElement === document.documentElement);
+      await audience.keyboard.press('f');
+      await audience.waitForFunction(() => !document.fullscreenElement);
       await presenter.getByText('Volgende',{exact:true}).click();
       await presenter.getByText('Volgende',{exact:true}).click();
       await audience.getByRole('heading',{name:'Bespaarde uren per week'}).waitFor();
@@ -139,6 +185,12 @@ const assert = require('node:assert/strict');
       await audience.getByRole('button',{name:'Alternatief',exact:true}).click();
       await scenario(presenter, 'Alternatief').waitFor();
       await scenario(audience, 'Alternatief').waitFor();
+      await audience.bringToFront();
+      await audience.locator('.scenario-plot svg[tabindex="0"]').focus();
+      await audience.keyboard.press('f');
+      await audience.waitForFunction(() => document.fullscreenElement === document.documentElement);
+      await audience.keyboard.press('f');
+      await audience.waitForFunction(() => !document.fullscreenElement);
       await presenter.getByText('Vorige',{exact:true}).click();
       await presenter.getByText('Volgende',{exact:true}).click();
       await scenario(presenter, 'Alternatief').waitFor();
@@ -159,7 +211,7 @@ const assert = require('node:assert/strict');
       await audience.getByText('Bron · Illustratieve data voor deze proef',{exact:true}).waitFor();
       await presenter.screenshot({path:url.startsWith('file:')?'presenter.png':'presenter-http.png',fullPage:true});
       await audience.screenshot({path:url.startsWith('file:')?'viewer.png':'viewer-http.png',fullPage:true});
-      results.push({url:url.startsWith('file:')?'file offline':'localhost',checks:['navigation from both windows','shared cursor and temporary boxes','text selection box','input arrow guard','shared reveal','three timer modes','overrun','pause','revisit','viewer refresh','presenter refresh','reopen viewer','bidirectional scrolling','fullscreen'],passed:true});
+      results.push({url:url.startsWith('file:')?'file offline':'localhost',checks:['navigation from both windows','shared cursor and temporary boxes','text selection across different viewport sizes','input arrow guard','shared reveal','three timer modes','overrun','pause','revisit','viewer refresh','presenter refresh','reopen viewer','bidirectional scrolling','fullscreen'],passed:true});
       await context.close();
     }
     writeFileSync('results.json',JSON.stringify(results,null,2));
