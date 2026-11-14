@@ -79,7 +79,31 @@ article:focus-visible {
   gap: 8px;
 }
 
-.presenter-connection { gap: 16px; }
+.presenter-connection { gap: 12px; }
+
+.presenter-links { gap: 6px; }
+
+.presenter-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.presenter-links a:hover {
+  background: #ffffff12;
+  color: #f4f5f6;
+}
+
+.presenter-links a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .connection-status::before {
   content: '';
@@ -107,6 +131,7 @@ article:focus-visible {
 }
 
 .presenter-stage article {
+  width: 100%;
   min-height: min(260px, 64vh);
   max-height: 64vh;
   aspect-ratio: 16 / 9;
@@ -168,7 +193,7 @@ article:focus-visible {
   font-size: 13px;
 }
 
-.presenter-view nav .primary-action {
+.presenter-view :is(header, nav) .primary-action {
   background: var(--accent);
   border-color: var(--accent);
   color: #202819;
@@ -179,7 +204,7 @@ article:focus-visible {
   background-color: #ffffff12;
 }
 
-.presenter-view nav .primary-action:hover:not(:disabled) { background-color: #e5f5c2; }
+.presenter-view :is(header, nav) .primary-action:hover:not(:disabled) { background-color: #e5f5c2; }
 
 .fullscreen-action { margin-left: auto; }
 
@@ -190,6 +215,7 @@ article:focus-visible {
   padding: 0 0 0 clamp(20px, 2.5vw, 36px);
   border: 0;
   border-left: 1px solid var(--line);
+  border-radius: 0;
 }
 
 .presenter-panel + .presenter-panel {
@@ -237,7 +263,48 @@ article:focus-visible {
 .timer-settings label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .timer-settings .estimate-field { display: inline-flex; align-items: center; gap: 6px; }
 .timer-settings input { width: 66px; margin: 0; }
-.timer-settings select { width: 126px; }
+.clock-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#clock-choice { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 126px; }
+
+.clock-options {
+  min-width: 126px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #171a20;
+  color: #f4f5f6;
+}
+
+@supports (position-area: block-end) {
+  .clock-options {
+    inset: auto;
+    margin: 6px 0;
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+}
+
+.presenter-view .clock-options button {
+  display: block;
+  width: 100%;
+  border-color: transparent;
+  text-align: start;
+}
+
+.presenter-view .clock-options button[aria-pressed="true"] {
+  background: #222821;
+  color: var(--accent);
+}
+
+.presenter-view .clock-options button:focus-visible { outline-offset: -2px; }
 .next-slide p { margin: 0; font-size: 17px; font-weight: 600; }
 
 @media (max-width: 760px) {

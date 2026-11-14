@@ -98,12 +98,15 @@ async function assertSelectionMatches(page, selector, start = 0, end = null) {
       await audience.getByLabel('Probeer pijltjestoetsen').fill('test');
       await audience.keyboard.press('ArrowLeft');
       assert.match(await audience.locator('h1').innerText(),/Probeer/);
-      await presenter.getByLabel('Klok op').selectOption('both');
+      await presenter.getByRole('button', {name:/^Klok op/}).click();
+      await presenter.getByRole('group', {name:'Klok op'}).getByRole('button', {name:'Beide', exact:true}).click();
       await audience.getByTestId('timer').waitFor();
-      await presenter.getByLabel('Klok op').selectOption('viewer');
+      await presenter.getByRole('button', {name:/^Klok op/}).click();
+      await presenter.getByRole('group', {name:'Klok op'}).getByRole('button', {name:'Publiek', exact:true}).click();
       await presenter.getByTestId('timer').waitFor({state:'detached'});
       await audience.getByTestId('timer').waitFor();
-      await presenter.getByLabel('Klok op').selectOption('presenter');
+      await presenter.getByRole('button', {name:/^Klok op/}).click();
+      await presenter.getByRole('group', {name:'Klok op'}).getByRole('button', {name:'Presentator', exact:true}).click();
       await audience.getByTestId('timer').waitFor({state:'detached'});
       await presenter.getByTestId('timer').waitFor();
       await presenter.getByLabel('Schatting',{exact:true}).fill('1');
