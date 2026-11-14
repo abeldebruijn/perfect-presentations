@@ -27,6 +27,33 @@ export function align(segments, turns, slides, duration) {
   });
 }
 
+function slideVisitAt(slides, time) {
+  return slides.findLastIndex(slide => slide.at <= time);
+}
+
+export function groupPassages(passages, slides, forSummary = false) {
+  const groups = [];
+  for (const passage of passages) {
+    const previous = groups.at(-1);
+    const sameContext = previous && Number.isFinite(previous.end) && Number.isFinite(passage.start) &&
+      previous.speakers.join() === passage.speakers.join() &&
+      previous.slides.length === 1 && passage.slides.length === 1 &&
+      slideVisitAt(slides, previous.start) === slideVisitAt(slides, passage.start);
+    const needsSourceBoundary = forSummary && previous &&
+      (passage.start - previous.end >= 0.85 || passage.end - previous.start > 12 || /[.!?]$/.test(previous.text));
+    if (sameContext && !needsSourceBoundary) {
+      previous.text += (/^[.,!?;:]/.test(passage.text) ? '' : ' ') + passage.text;
+      previous.end = Math.max(previous.end, passage.end);
+      previous.simultaneous ||= passage.simultaneous;
+      previous.uncertain ||= passage.uncertain;
+      previous.sourceIds.push(passage.id);
+    } else {
+      groups.push({...passage, sourceIds: [passage.id]});
+    }
+  }
+  return groups;
+}
+
 export function checkReferences(result, passages) {
   const ids = new Set(passages.map(passage => passage.id));
   const {summary, actions} = result;

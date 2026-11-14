@@ -2,74 +2,126 @@
 <html lang="nl">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Meetings · Perfect Presentations</title>
-<style>
-  :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #172435; background: #f4f7fa; }
-  body { margin: 0; }
-  main { max-width: 68rem; margin: 2rem auto; padding: 0 1rem; }
-  header { margin-bottom: 1.5rem; }
-  h1, h2, h3 { line-height: 1.25; }
-  a, button { color: #075c89; }
-  button { font: inherit; background: white; border: 1px solid #adc4d2; border-radius: .35rem; padding: .4rem .7rem; cursor: pointer; }
-  button:disabled { cursor: wait; }
-  .layout { display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(0, 2fr); gap: 1rem; }
-  aside, article { background: white; padding: 1rem; border-radius: .6rem; border: 1px solid #dce5eb; }
-  aside button { margin: .25rem 0; }
-  li { margin-bottom: .55rem; }
-  audio { width: 100%; margin-block: .5rem; }
-  #passages { padding-left: 0; list-style: none; }
-  #passages li { border-top: 1px solid #e5ebf0; padding: .7rem; margin: 0; scroll-margin-top: 1rem; }
-  #passages p { margin: .35rem 0; }
-  #passages .selected { background: #eaf5fc; }
-  .meta { color: #47596c; font-size: .9rem; }
-  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
-</style>
-<main>
-  <header>
-    <a href="/route.html">Terug naar de presentatie</a>
-    <h1>Meetings</h1>
-  </header>
-  <div class="layout">
-    <aside>
-      <h2>Sessies</h2>
-      <ul id="sessions"></ul>
-      <button id="example">Open voorbeeldgesprek</button>
-      <div><label><input type="checkbox" id="interrupt"> Onderbreek verwerking</label></div>
-      <p id="list-feedback" role="status"></p>
-      <details>
-        <summary>Verwerking en opslag</summary>
-        <p>Audio gaat naar de lokale server en whisper.cpp. Desert Ant Who verwerkt diezelfde audio lokaal. Ollama krijgt lokaal het transcript met passage-ID’s. Audio, tijdlijn en resultaten staan samen in de lokale proefmap.</p>
-      </details>
-    </aside>
-    <article id="detail" hidden>
-      <h2 id="meeting-title"></h2>
-      <p id="meeting-date" class="meta"></p>
-      <p id="status" role="status"></p>
-      <button id="retry" hidden>Verwerking opnieuw proberen</button>
-      <audio id="audio" controls preload="metadata"></audio>
-      <p id="active-slide" class="meta"></p>
+<title>Opnames · Perfect Presentations</title>
+<link rel="stylesheet" href="/design-preview.css">
+<body class="recordings-page">
+<header class="shell">
+  <a class="brand" href="/route.html"><strong>Perfect Presentations</strong></a>
+  <nav aria-label="Hoofdnavigatie">
+    <a href="/route.html">Presentatorweergave</a>
+    <a href="/meetings.html" aria-current="page">Opnames</a>
+    <a href="/settings.html">Instellingen</a>
+  </nav>
+</header>
+<main class="recordings">
+  <div class="page-heading">
+    <h1>Opnames</h1>
+    <button id="picker" type="button" popovertarget="recording-picker" hidden>Andere opname</button>
+    <div id="recording-picker" class="popover popover-end" popover>
+      <ul id="recording-list" aria-label="Kies een opname"></ul>
+    </div>
+  </div>
+  <p id="list-feedback" class="meta" role="status"></p>
+  <article id="detail" hidden>
+    <header class="recording-header">
+      <div>
+        <h2 id="meeting-title" class="recording-title"></h2>
+        <p id="meeting-date" class="meta"></p>
+        <p id="status" class="meta" role="status"></p>
+        <button id="processing-button" class="processing-button" type="button" popovertarget="processing-details">Gebruikte modellen</button>
+        <section id="processing-details" class="popover" popover aria-label="Verwerkingsmodellen">
+          <ul id="processing-stages"></ul>
+          <p id="processing-cost" class="meta" hidden></p>
+        </section>
+      </div>
+      <button id="retry" hidden>Opnieuw proberen</button>
+    </header>
+    <audio id="audio" preload="metadata"></audio>
+    <section id="timeline" aria-label="Tijdlijn van de opname">
+      <div class="timeline-controls">
+        <button id="play-audio" type="button" aria-label="Afspelen">▶</button>
+        <span id="playback-time" class="meta"></span>
+        <button id="edit-speakers" type="button" aria-haspopup="dialog" hidden>Sprekers benoemen</button>
+        <button id="toggle-tracks" type="button" aria-expanded="true" aria-controls="timeline-tracks timeline-ruler">Inklappen</button>
+      </div>
+      <div class="timeline-grid" id="timeline-grid">
+        <span class="meta">Audio</span>
+        <div class="waveform">
+          <canvas aria-hidden="true"></canvas>
+          <input id="seek-audio" type="range" min="0" max="0" step=".05" value="0" aria-label="Afspeelpositie">
+        </div>
+        <div id="timeline-tracks"></div>
+        <div id="timeline-ruler" class="meta" aria-hidden="true"></div>
+      </div>
+      <p id="audio-error" class="meta" role="status"></p>
+    </section>
+    <dialog id="speaker-dialog" aria-labelledby="speaker-title">
+      <div class="dialog-header">
+        <h2 id="speaker-title">Sprekers benoemen</h2>
+        <button id="close-speakers" type="button" aria-label="Sluiten">×</button>
+      </div>
+      <form id="speaker-form">
+        <div id="speaker-fields"></div>
+        <button type="submit">Namen opslaan</button>
+        <p id="speaker-error" class="meta" role="status"></p>
+      </form>
+    </dialog>
+    <div class="recording-body" data-panel="notes">
+      <div class="view-tabs" aria-label="Opname bekijken" hidden>
+        <button type="button" data-panel="notes" aria-pressed="true" aria-controls="notes">Samenvatting</button>
+        <button type="button" data-panel="transcript" aria-pressed="false" aria-controls="transcript">Transcript</button>
+      </div>
       <div id="notes" hidden>
-        <h3>Samenvatting</h3>
-        <ul id="summary"></ul>
-        <h3>Actiepunten</h3>
-        <ul id="actions"></ul>
+        <ul class="note-list" id="summary"></ul>
+        <div class="secondary-options">
+          <button id="action-title" type="button" popovertarget="action-details">Actiepunten</button>
+          <section id="action-details" class="popover" popover aria-label="Actiepunten">
+            <ul class="note-list" id="actions"></ul>
+          </section>
+        </div>
       </div>
       <div id="transcript" hidden>
-        <h3>Transcript</h3>
         <ul id="passages"></ul>
       </div>
-    </article>
+    </div>
+  </article>
+  <div class="secondary-options">
+    <button id="manage" type="button" popovertarget="recording-tools">Opnamebeheer</button>
+    <section id="recording-tools" class="popover recording-tools" popover aria-label="Opnamebeheer">
+      <button id="reprocess" hidden>Opnieuw verwerken</button>
+      <button id="example">Voorbeeld verwerken</button>
+      <label><input type="checkbox" id="interrupt"> Onderbreek voorbeeldverwerking</label>
+    </section>
   </div>
 </main>
 <script type="module">
+  import {createTimeline, speakerName} from "/timeline.js";
   const find = id => document.getElementById(id);
+  const header = document.querySelector('.shell');
+  const updateHeaderHeight = () => document.body.style.setProperty('--nav-height', header.offsetHeight + 'px');
+  updateHeaderHeight();
+  new ResizeObserver(updateHeaderHeight).observe(header);
   const audio = find('audio');
+  const body = document.querySelector('.recording-body');
+  const tabs = [...document.querySelectorAll('.view-tabs button')];
+  function selectPanel(panel) {
+    body.dataset.panel = panel;
+    for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.panel === panel));
+  }
+  for (const tab of tabs) tab.onclick = () => selectPanel(tab.dataset.panel);
+
   let current;
   let previous;
   let selected;
   let revision = 0;
   let timer;
-  const date = value => new Date(value).toLocaleString('nl-NL');
+  const formatter = new Intl.DateTimeFormat('nl-NL', {dateStyle: 'long', timeStyle: 'short'});
+  const usd = new Intl.NumberFormat('nl-NL', {
+    style: 'currency', currency: 'USD', maximumFractionDigits: 8,
+  });
+  const formatCost = cost => cost > 0 && cost < 0.00000001
+    ? '< ' + usd.format(0.00000001) : usd.format(cost);
+  const date = value => formatter.format(new Date(value));
   const time = value => {
     const seconds = Math.floor(value);
     return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
@@ -90,65 +142,138 @@
     for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
     return node;
   }
-  function updateSlide() {
-    const active = current?.slides.findLast(slide => slide.at <= audio.currentTime);
-    find('active-slide').textContent = active ? 'Slide tijdens afspelen · ' + active.title : '';
+  const timeline = createTimeline(audio, element, time, jump, names => {
+    const id = current.id;
+    return request('/' + id + '/speakers', {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(names),
+    }).then(() => refresh());
+  });
+  function updateHighlight() {
+    const time = audio.currentTime;
+    const blocks = current?.transcriptBlocks ?? current?.passages ?? [];
+    const next = blocks.findLast(block => block.start <= time && time < block.end)?.id;
+    if (next === selected) return;
+    find(selected)?.classList.remove('selected');
+    selected = next;
+    find(selected)?.classList.add('selected');
   }
-  audio.addEventListener('timeupdate', updateSlide);
+  for (const event of ['timeupdate', 'seeking', 'seeked', 'ended', 'loadedmetadata']) {
+    audio.addEventListener(event, updateHighlight);
+  }
   function jump(passage) {
-    audio.currentTime = passage.seek ?? passage.start;
-    updateSlide();
-    selected = passage.id;
-    for (const row of find('passages').children) row.classList.toggle('selected', row.id === selected);
-    find(selected).scrollIntoView({block: 'nearest'});
-    find(selected).focus({preventScroll: true});
+    find('action-details').hidePopover();
+    selectPanel('transcript');
+    if (Number.isFinite(passage.start)) {
+      audio.currentTime = passage.seek ?? passage.start;
+      updateHighlight();
+    }
+    const block = current.transcriptBlocks?.find(block => block.sourceIds.includes(passage.id));
+    const row = find(block?.id ?? passage.id);
+    row?.scrollIntoView({block: 'nearest'});
+    row?.focus({preventScroll: true});
   }
   function render(session) {
     if (current?.id !== session.id) {
       selected = null;
+      find('action-details').hidePopover();
+      selectPanel('notes');
       previous = null;
       audio.src = '/api/meetings/' + session.id + '/audio';
     }
+    const becameReady = current?.status !== 'ready' && session.status === 'ready';
     current = session;
     const snapshot = JSON.stringify(session);
     if (snapshot === previous) return;
     previous = snapshot;
     find('detail').hidden = false;
+    timeline.render(session);
     find('meeting-title').textContent = session.deck;
-    find('meeting-date').textContent = date(session.date);
-    const timing = Object.entries(session.timings ?? {}).map(([step, ms]) => step + ' ' + (ms / 1000).toFixed(2) + ' s');
-    find('status').textContent = [status[session.status], session.stage, session.error, timing.join(' · ')].filter(Boolean).join(' · ');
-    find('retry').hidden = session.status !== 'failed';
+    find('meeting-date').textContent = [date(session.date), Number.isFinite(session.duration) ? time(session.duration) : '']
+      .filter(Boolean).join(' · ');
+    const feedback = find('status');
+    feedback.dataset.state = session.status;
+    const stages = session.stages ?? [];
+    const activeStage = stages.find(step => step.status === 'active' || step.status === 'failed');
+    feedback.textContent = [session.status === 'ready' ? '' : status[session.status], session.stage, activeStage?.model, session.error]
+      .filter(Boolean).join(' · ');
+    feedback.hidden = !feedback.textContent;
+    find('processing-button').textContent = session.status === 'ready' ? 'Gebruikte modellen' : 'Verwerkingsmodellen';
+    const stageLabels = {done: 'Afgerond', active: 'Bezig', failed: 'Mislukt', skipped: 'Overgeslagen', pending: 'Wacht'};
+    const stageList = stages.map(step => {
+      const row = element('li', '');
+      row.append(element('span', step.name + ' · ' + stageLabels[step.status], {class: 'meta'}),
+        element('strong', step.model));
+      if (Number.isFinite(step.costUsd)) {
+        row.append(element('span', formatCost(step.costUsd), {class: 'meta'}));
+      } else if (step.status === 'done' || step.status === 'failed') {
+        row.append(element('span', step.local ? 'Lokaal' : 'Kosten niet beschikbaar', {class: 'meta'}));
+      }
+      return row;
+    });
+    const billable = stages.filter(step => !step.local && step.status !== 'skipped');
+    const total = find('processing-cost');
+    total.hidden = session.status !== 'ready' || !billable.length ||
+      billable.some(step => !Number.isFinite(step.costUsd));
+    if (!total.hidden) {
+      total.textContent = 'Totaal via Vercel · ' + formatCost(billable.reduce((sum, step) => sum + step.costUsd, 0));
+    }
+    find('processing-stages').replaceChildren(...(stageList.length ? stageList :
+      [element('li', 'Voor deze opname zijn geen modellen vastgelegd.', {class: 'meta'})]));
+    const retry = find('retry');
+    retry.hidden = session.status !== 'failed';
+    find('reprocess').hidden = session.status !== 'ready';
+    const actionCount = session.actions?.length ?? 0;
+    find('action-title').textContent = 'Actiepunten (' + actionCount + ')';
     find('notes').hidden = session.status !== 'ready';
     find('transcript').hidden = !session.passages?.length;
-    updateSlide();
+    document.querySelector('.view-tabs').hidden = find('notes').hidden || find('transcript').hidden;
+    if (find('notes').hidden) selectPanel('transcript');
+    else if (becameReady || find('transcript').hidden) selectPanel('notes');
+    updateHighlight();
 
-    find('passages').replaceChildren(...(session.passages ?? []).map(passage => {
+    find('passages').replaceChildren(...(session.transcriptBlocks ?? session.passages ?? []).map(passage => {
       const row = element('li', '', {id: passage.id, tabindex: '-1'});
       row.classList.toggle('selected', passage.id === selected);
+      if (!Number.isFinite(passage.start)) {
+        row.classList.add('untimed');
+        row.append(element('p', passage.text), element('span', 'Tijdstempels ontbreken', {class: 'meta'}));
+        return row;
+      }
       const parts = [
-        passage.speakers.map(index => 'Spreker ' + (index + 1)).join(', ') || 'Spreker onbekend',
+        passage.speakers.map(index => speakerName(session, index)).join(', ') || 'Spreker onbekend',
         passage.simultaneous ? 'Stemmen overlappen' : '',
         passage.uncertain ? 'Sprekerstoewijzing onzeker' : '',
         passage.slides.map(slide => slide.title).join(' → '),
       ].filter(Boolean);
-      const seek = element('button', time(passage.start) + ' – ' + time(passage.end));
+      const seek = element('button', time(passage.start) + ' – ' + time(passage.end), {class: 'jump'});
       seek.onclick = () => jump(passage);
       row.append(seek, element('p', passage.text), element('span', parts.join(' · '), {class: 'meta'}));
       return row;
     }));
     for (const field of ['summary', 'actions']) {
-      const entries = session[field] ?? [];
+      const entries = session.status === 'ready' ? session[field] ?? [] : [];
       find(field).replaceChildren(...entries.map(entry => {
         const passage = session.passages.find(candidate => candidate.id === entry.passageId);
         const li = element('li', entry.text + ' ');
-        const seek = element('button', 'Naar ' + time(passage.seek ?? passage.start) + ' · ' + passage.slides.map(slide => slide.title).join(' → '));
+        const seekLabel = Number.isFinite(passage.start)
+          ? ['Naar ' + time(passage.seek ?? passage.start), passage.slides.map(slide => slide.title).join(' → ')].filter(Boolean).join(' · ')
+          : 'Naar transcript';
+        const seek = element('button', seekLabel, {class: 'jump'});
         seek.onclick = () => jump(passage);
         li.append(seek);
         return li;
       }));
-      if (!entries.length && session.status === 'ready') find(field).append(element('li', 'Geen'));
+      if (!entries.length && session.status === 'ready') find(field).append(element('li', field === 'actions' ? 'Geen actiepunten gevonden.' : 'Geen samenvatting beschikbaar.', {class: 'meta'}));
     }
+  }
+  function recordingUrl(id) {
+    const url = new URL(location.href);
+    url.searchParams.set('id', id);
+    return url;
+  }
+  function openRecording(id) {
+    history.pushState(null, '', recordingUrl(id));
+    refresh();
   }
   function refresh() {
     clearTimeout(timer);
@@ -161,25 +286,23 @@
       const sessions = await request('');
       const session = requested ? await request('/' + encodeURIComponent(requested)) : sessions[0];
       if (version !== revision) return;
-      find('list-feedback').textContent = sessions.length ? '' : 'Er zijn nog geen sessies.';
-      const list = find('sessions');
-      const listSnapshot = JSON.stringify([session?.id, sessions.map(({id, deck, date, status, stage}) => ({id, deck, date, status, stage}))]);
+      find('list-feedback').textContent = sessions.length ? '' : 'Je opnames verschijnen hier zodra je een opname maakt in de presentatorweergave.';
+      const picker = find('picker');
+      const list = find('recording-list');
+      const options = sessions.map(({id, deck, date}) => ({id, deck, date}));
+      const listSnapshot = JSON.stringify([session?.id, options]);
       if (list.dataset.snapshot !== listSnapshot) {
         list.dataset.snapshot = listSnapshot;
-        list.replaceChildren(...sessions.map(item => {
-          const link = element('a', item.deck, {href: '?id=' + item.id});
-          if (item.id === session?.id) link.setAttribute('aria-current', 'page');
-          link.onclick = event => {
-            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-            event.preventDefault();
-            history.pushState(null, '', link.href);
-            refresh();
-          };
-          const li = element('li', '');
-          li.append(link, element('div', date(item.date) + ' · ' + status[item.status], {class: 'meta'}));
-          return li;
+        list.replaceChildren(...options.map(({id, deck, date: recordedAt}) => {
+          const item = element('li', '');
+          const link = element('a', '', {href: recordingUrl(id).href});
+          if (id === session?.id) link.setAttribute('aria-current', 'true');
+          link.append(element('span', deck), element('span', date(recordedAt), {class: 'meta'}));
+          item.append(link);
+          return item;
         }));
       }
+      picker.hidden = options.length < 2;
       if (session) render(session);
       timer = setTimeout(() => update(version), 1000);
     } catch (error) {
@@ -191,16 +314,23 @@
     button.disabled = true;
     try {
       const {id} = await request(path, {method: 'POST', headers});
-      history.pushState(null, '', '?id=' + id);
-      refresh();
+      if (find('recording-tools').matches(':popover-open')) {
+        find('recording-tools').hidePopover();
+        find('manage').focus();
+      }
+      openRecording(id);
     } catch (error) {
       find('status').textContent = error.message;
       find('list-feedback').textContent = error.message;
     } finally { button.disabled = false; }
   }
   find('example').onclick = () => action(find('example'), '/example', {'X-Interrupt': find('interrupt').checked ? 'yes' : 'no'});
-  find('retry').onclick = () => action(find('retry'), '/' + current.id + '/retry');
+  for (const id of ['retry', 'reprocess']) {
+    const button = find(id);
+    button.onclick = () => action(button, '/' + current.id + '/retry');
+  }
   addEventListener('popstate', refresh);
   refresh();
 </script>
+</body>
 </html>

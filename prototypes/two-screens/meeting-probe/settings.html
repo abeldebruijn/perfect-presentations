@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="nl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Instellingen · Perfect Presentations</title>
+<link rel="stylesheet" href="/design-preview.css">
+<header class="shell">
+  <a class="brand" href="/route.html"><strong>Perfect Presentations</strong></a>
+  <nav aria-label="Hoofdnavigatie">
+    <a href="/route.html">Presentatorweergave</a>
+    <a href="/meetings.html">Opnames</a>
+    <a href="/settings.html" aria-current="page">Instellingen</a>
+  </nav>
+</header>
+<main class="settings-page">
+  <div class="page-heading"><h1>Instellingen</h1></div>
+  <div class="settings-layout">
+    <section class="settings-intro" aria-labelledby="gateway-title">
+      <h2 id="gateway-title">Vercel AI Gateway</h2>
+      <p>Met een sleutel worden audio en transcript via Vercel verwerkt. Vercel brengt het gebruik in rekening. Sprekerherkenning draait lokaal.</p>
+    </section>
+    <section class="settings-form" aria-label="Gateway-sleutel">
+      <p id="configuration" class="meta">Instellingen laden…</p>
+      <button id="key-title" class="primary-button" type="button" aria-haspopup="dialog" disabled>API-sleutel instellen</button>
+      <dialog id="key-dialog" aria-labelledby="key-dialog-title">
+        <header class="dialog-header">
+          <h2 id="key-dialog-title">Vercel API-sleutel</h2>
+          <button id="close-key" type="button" aria-label="Sluiten">×</button>
+        </header>
+        <form id="form" autocomplete="off">
+          <label for="key">API-sleutel</label>
+          <input id="key" type="password" autocomplete="off" placeholder="AI_GATEWAY_API_KEY" maxlength="4000" required autofocus>
+          <div class="form-actions">
+            <button id="save" disabled>Sleutel opslaan</button>
+            <button id="remove" class="secondary" type="button" hidden>Sleutel verwijderen</button>
+          </div>
+        </form>
+        <a href="https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys&amp;title=AI+Gateway+API+Keys" target="_blank" rel="noreferrer">API-sleutels bij Vercel ↗</a>
+        <p id="form-feedback" class="meta" role="status"></p>
+      </dialog>
+      <p id="feedback" class="meta" role="status"></p>
+    </section>
+    <div class="secondary-options">
+      <button type="button" popovertarget="settings-models">Modellen via Vercel</button>
+      <section id="settings-models" class="popover settings-models" popover aria-label="Modellen via Vercel">
+        <dl>
+          <div><dt>Transcriptie</dt><dd>Gemini 3.5 Transcribe</dd></div>
+          <div><dt>Samenvatting en actiepunten</dt><dd>Gemini 4 Hydrogen</dd></div>
+        </dl>
+      </section>
+    </div>
+  </div>
+</main>
+<script type="module">
+  const configuration = document.getElementById('configuration');
+  const field = document.getElementById('key');
+  const save = document.getElementById('save');
+  const remove = document.getElementById('remove');
+  const feedback = document.getElementById('feedback');
+  const formFeedback = document.getElementById('form-feedback');
+  const dialog = document.getElementById('key-dialog');
+  const keyTitle = document.getElementById('key-title');
+  keyTitle.onclick = () => dialog.showModal();
+  document.getElementById('close-key').onclick = () => dialog.close();
+  dialog.addEventListener('close', () => {
+    field.value = '';
+    formFeedback.textContent = '';
+  });
+
+  async function update(method, apiKey) {
+    save.disabled = remove.disabled = true;
+    feedback.textContent = formFeedback.textContent = '';
+    try {
+      const response = await fetch('/api/settings', {
+        method,
+        ...(method === 'PUT' && {
+          headers: {'Content-Type': 'application/json'}, body: JSON.stringify({apiKey}),
+        }),
+      });
+      const state = await response.json();
+      if (!response.ok) throw new Error(state.error);
+      configuration.textContent = {
+        saved: 'API-sleutel opgeslagen op deze computer.',
+        environment: 'Ingesteld via AI_GATEWAY_API_KEY.',
+      }[state.source] ?? 'Lokale verwerking is actief. Voeg een sleutel toe om Gemini te gebruiken.';
+      remove.hidden = state.source !== 'saved';
+      keyTitle.textContent = state.source ? 'API-sleutel beheren' : 'API-sleutel instellen';
+      if (method !== 'GET' && dialog.open) dialog.close();
+      if (method === 'PUT') {
+        field.value = '';
+        feedback.textContent = 'Sleutel opgeslagen. Gemini wordt gebruikt bij de volgende verwerking.';
+      }
+      if (method === 'DELETE') feedback.textContent = 'Opgeslagen sleutel verwijderd.';
+    } catch (error) {
+      const message = dialog.open ? formFeedback : feedback;
+      message.textContent = error.message;
+    } finally {
+      keyTitle.disabled = save.disabled = remove.disabled = false;
+    }
+  }
+  document.getElementById('form').onsubmit = event => {
+    event.preventDefault();
+    update('PUT', field.value);
+  };
+  remove.onclick = () => update('DELETE');
+  update('GET');
+</script>
+</html>

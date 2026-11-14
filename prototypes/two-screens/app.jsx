@@ -130,6 +130,8 @@ async function toggleFullscreen() {
     alert('Volledig scherm is hier niet beschikbaar.');
   }
 }
+const clockLocations = {presenter: 'Presentator', viewer: 'Publiek', both: 'Beide'};
+
 function App() {
   const [current, setCurrent] = useState({...state});
   const [now,setNow] = useState(Date.now());
@@ -224,7 +226,12 @@ function App() {
           <span className={connected ? 'connection-status connected' : 'connection-status'}>
             {connected ? 'Publiek verbonden' : 'Publiek niet verbonden'}
           </span>
-          {location.pathname === '/route.html' && <a href="/meetings.html" target="_blank" rel="noreferrer">Meetings</a>}
+          {location.pathname === '/route.html' && (
+            <nav className="presenter-links" aria-label="Presentatiemenu">
+              <a href="/meetings.html" target="_blank" rel="noreferrer">Opnames</a>
+              <a href="/settings.html">Instellingen</a>
+            </nav>
+          )}
           <button className="primary-action" onClick={openViewer}>Publiek openen</button>
         </div>
       </header>
@@ -253,11 +260,20 @@ function App() {
             </div>
             <div className="timer-settings">
               <label>Schatting <span className="estimate-field"><input aria-label="Schatting" type="number" min="1" value={current.estimates[current.slide]} onChange={e => command('estimate', Number(e.target.value))}/> sec</span></label>
-              <label>Klok op <select aria-label="Klok op" value={current.visibility} onChange={e => command('visibility', e.target.value)}>
-                <option value="presenter">Presentator</option>
-                <option value="viewer">Publiek</option>
-                <option value="both">Beide</option>
-              </select></label>
+              <div className="clock-setting">
+                <span id="clock-label">Klok op</span>
+                <button id="clock-choice" type="button" popoverTarget="clock-options" aria-labelledby="clock-label clock-choice">
+                  {clockLocations[current.visibility]} <span aria-hidden="true">⌄</span>
+                </button>
+                <div id="clock-options" className="clock-options" popover="auto" data-arrow-keys role="group" aria-labelledby="clock-label">
+                  {Object.entries(clockLocations).map(([value, label]) => (
+                    <button key={value} type="button" aria-pressed={current.visibility === value}
+                      popoverTarget="clock-options" popoverTargetAction="hide" onClick={() => command('visibility', value)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
           <section className="presenter-panel next-slide">

@@ -127,12 +127,12 @@ export function Recorder({getSlide, subscribeToMoves}) {
   }
 
   return <section className="presenter-panel meeting-recorder" aria-label="Lokale opname">
-    <h2>Meetingopname</h2>
+    <h2>Opname</h2>
     {phase === 'check' && <p>Praat even en kijk of de meter beweegt. <meter min="0" max="1" value={level} aria-label="Microfoonniveau"/></p>}
     {phase === 'recording' && <p role="status">🔴 Opname actief</p>}
     {phase === 'saving' && <p role="status">Opname opslaan…</p>}
     {message && <p role="status">{message}</p>}
-    {meeting && <p><a href={`/meetings.html?id=${meeting}`}>Open deze sessie</a></p>}
+    {meeting && <p><a href={`/meetings.html?id=${meeting}`}>Open opname</a></p>}
     <div className="timer-controls">
       {phase === 'idle' && <button onClick={checkMicrophone}>Microfoon checken</button>}
       {phase === 'opening' && <p>Wacht op de microfoon…</p>}

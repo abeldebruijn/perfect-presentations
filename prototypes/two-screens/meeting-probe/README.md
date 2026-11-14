@@ -8,30 +8,32 @@ Gebruik Node 22 of nieuwer. Voer vanuit `prototypes/two-screens` uit:
 
 ```sh
 npm ci
-npm install --no-save --package-lock=false @desert-ant-labs/who@4.3.0
 npm run build
 ```
 
-Start de [Whisper-server](https://github.com/ggml-org/whisper.cpp/tree/master/examples/server) met het meertalige model `ggml-base.bin`:
+Start de meetingsserver met `node meeting-probe/server.mjs`. Open [Instellingen](http://127.0.0.1:8000/settings.html) en plak je Vercel AI Gateway API-sleutel. Je kunt de sleutel ook als `AI_GATEWAY_API_KEY` aan het serverproces meegeven. Een sleutel uit Instellingen heeft voorrang en wordt in de lokale sessiemap opgeslagen met lees- en schrijfrechten voor je eigen account.
+
+De opname gaat via de gateway naar [Gemini 3.5 Transcribe](https://vercel.com/ai-gateway/models/gemini-3.5-transcribe). [Gemini 4 Hydrogen](https://vercel.com/ai-gateway/models/gemini-4-hydrogen) krijgt het transcript met passage-ID’s en maakt de samenvatting en actiepunten. Kies **Opnieuw verwerken** in een bestaande sessie om ook eerdere audio met deze modellen te verwerken. Als de gateway geen tijdstempels teruggeeft, blijft de tekst leesbaar en toont de sessie dat de tijdstempels ontbreken.
+
+Voor lokale verwerking zonder gateway-sleutel start je de [Whisper-server](https://github.com/ggml-org/whisper.cpp/tree/master/examples/server) met het meertalige model `ggml-base.bin`:
 
 ```sh
 whisper-server --host 127.0.0.1 --port 8179 -m /pad/naar/ggml-base.bin -l nl
 ```
 
-Start Ollama, haal het proefmodel op en start de meetingsserver vanuit `prototypes/two-screens`:
+Start voor lokale verwerking ook Ollama en haal het proefmodel op vanuit `prototypes/two-screens`:
 
 ```sh
 ollama pull qwen2.5:1.5b
-node meeting-probe/server.mjs
 ```
 
-Open [de presentatorweergave](http://127.0.0.1:8000/route.html) of ga direct naar [Meetings](http://127.0.0.1:8000/meetings.html). De server gebruikt standaard een tijdelijke map voor sessies. Zet `MEETING_DATA` op een eigen lokale map als je sessies langer wilt bewaren. `MEETING_PORT`, `MEETING_MODEL` en `MEETING_WHISPER` zijn optioneel. De eerste start van [Desert Ant Who](https://desertant.com/docs/who/) kan modelbestanden downloaden.
+Open [de presentatorweergave](http://127.0.0.1:8000/route.html) of ga direct naar [Opnames](http://127.0.0.1:8000/meetings.html). De server gebruikt standaard een tijdelijke map voor sessies. Zet `MEETING_DATA` op een eigen lokale map als je sessies langer wilt bewaren. `MEETING_PORT`, `MEETING_MODEL` en `MEETING_WHISPER` zijn optioneel. De eerste start van [Desert Ant Who](https://desertant.com/docs/who/) kan modelbestanden downloaden.
 
 ## Doorlopen
 
-- Klik in **Meetings** op **Open voorbeeldgesprek**. In de synthetische opname wisselt de slide op 10 seconden van **Planning** naar **Begroting**. De tweede spreker onderbreekt daarna kort en zegt rond 15 seconden toe de cijfers vrijdag naar het team te sturen.
+- Klik in **Opnames** onder **Opnamebeheer** op **Voorbeeld verwerken**. In de synthetische opname wisselt de slide op 10 seconden van **Planning** naar **Begroting**. De tweede spreker onderbreekt daarna kort en zegt rond 15 seconden toe de cijfers vrijdag naar het team te sturen.
 - Open de passage over de wissel. Controleer de twee slidelabels. Klik vanuit de vrijdagafspraak door naar de opname. De proef gebruikt het begin van de eerste gedetecteerde stem binnen de passage als afspeelpunt. Bij ontbrekende sprekerinformatie gebruikt hij het ruwe begin van de passage.
-- Vink **Onderbreek verwerking** aan en open opnieuw het voorbeeldgesprek. Vernieuw de pagina, luister naar de bewaarde opname en klik op **Verwerking opnieuw proberen**.
+- Vink **Onderbreek voorbeeldverwerking** aan en open opnieuw het voorbeeldgesprek. Vernieuw de pagina, luister naar de bewaarde opname en klik op **Opnieuw proberen**.
 - Maak daarna een eigen opname vanuit de presentatorweergave. Gebruik één microfoon en twee mensen. Wissel van slide terwijl de eerste persoon spreekt en laat de tweede kort door die persoon heen praten. Vergelijk vervolgens audio, transcript, sprekerlabels, samenvatting en actiepunten.
 
 ## Eerste meting
